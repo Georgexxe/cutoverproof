@@ -1,0 +1,99 @@
+{
+  "id": "u2_legacy_update_after_backfill",
+  "name": "Legacy Cancellation Update After Backfill Batch",
+  "description": "A legacy cancellation updates only the text status to refunded after that row has already been processed by the backfill. The new status_id identifier remains stale as pending.",
+  "evaluator_label": "unsafe",
+  "max_candidates": 8,
+  "max_schedule_length": 6,
+  "schema_file": "schema.sql",
+  "seed_file": "seed.sql",
+  "expand_file": "expand.sql",
+  "invariants_file": "invariants.sql",
+  "repair_file": "repair.sql",
+  "phases": [
+    {
+      "id": "seed",
+      "name": "Seed Phase",
+      "description": "Initial database state with orders table"
+    },
+    {
+      "id": "expand",
+      "name": "Expand Schema",
+      "description": "Add order_statuses lookup and status_id FK"
+    },
+    {
+      "id": "backfill",
+      "name": "Backfill Data",
+      "description": "Backfill existing orders to status_id"
+    },
+    {
+      "id": "compat",
+      "name": "Compatibility Phase",
+      "description": "Dual-write / trigger synchronization"
+    },
+    {
+      "id": "cutover",
+      "name": "Cutover Phase",
+      "description": "New app readers query status_id"
+    }
+  ],
+  "operations": {
+    "expand_schema": {
+      "id": "expand_schema",
+      "phase": "expand",
+      "actor": "Migration Coordinator",
+      "description": "DDL: Create order_statuses lookup table and add orders.status_id column",
+      "sql": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);"
+    },
+    "backfill_orders": {
+      "id": "backfill_orders",
+      "phase": "backfill",
+      "actor": "Backfill Worker",
+      "description": "DML: Backfill orders.status_id from orders.status based on order_statuses lookup",
+      "sql": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;"
+    },
+    "legacy_order_cancel_refund": {
+      "id": "legacy_order_cancel_refund",
+      "phase": "seed",
+      "actor": "Legacy Worker",
+      "description": "Legacy Application: Cancel/refund order by updating orders.status = 'refunded' directly",
+      "sql": "UPDATE orders SET status = 'refunded' WHERE id = 42;"
+    },
+    "legacy_order_mark_shipped": {
+      "id": "legacy_order_mark_shipped",
+      "phase": "seed",
+      "actor": "Legacy Worker",
+      "description": "Legacy Application: Mark order as shipped by updating orders.status = 'shipped'",
+      "sql": "UPDATE orders SET status = 'shipped' WHERE id = 42;"
+    },
+    "new_app_read_status": {
+      "id": "new_app_read_status",
+      "phase": "cutover",
+      "actor": "New App Reader",
+      "description": "New Application: Read status from status_id via order_statuses join",
+      "sql": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;"
+    }
+  },
+  "invariants": [
+    {
+      "id": "status_consistency_invariant",
+      "name": "Status Consistency Invariant",
+      "description": "Whenever orders.status_id is populated, it must match orders.status text exactly.",
+      "sql": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;"
+    }
+  ],
+  "known_failing_schedule": [
+    "expand_schema",
+    "backfill_orders",
+    "legacy_order_cancel_refund",
+    "new_app_read_status"
+  ],
+  "permitted_repairs": [
+    {
+      "id": "repair_sync_trigger_before_backfill",
+      "name": "Install Sync Trigger Before Backfill",
+      "description": "Ensure any direct legacy status update propagates to status_id immediately.",
+      "patch_type": "sync_trigger"
+    }
+  ]
+}

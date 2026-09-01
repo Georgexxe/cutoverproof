@@ -1,0 +1,1 @@
+INSERT INTO products VALUES (7, 'SKU-OLD', NULL); INSERT INTO sku_catalog VALUES (1, 'SKU-OLD'), (2, 'SKU-NEW');

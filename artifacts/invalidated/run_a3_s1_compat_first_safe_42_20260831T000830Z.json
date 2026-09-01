@@ -1,0 +1,733 @@
+{
+  "run_id": "run_a3_s1_compat_first_safe_42",
+  "scenario_id": "s1_compat_first_safe",
+  "scenario_name": "Compatibility-First Safe Rollout (Control S1)",
+  "approach_id": "A3_specialised_agent",
+  "seed": 42,
+  "max_budget": 4,
+  "candidates_attempted": 4,
+  "status": "no_counterexample_found_within_budget",
+  "verified_counterexample_found": false,
+  "first_counterexample_index": null,
+  "winning_schedule": null,
+  "traces": [
+    {
+      "schedule_id": "sched_e0a6393e",
+      "hypothesis": "Testing if a concurrent update during the backfill phase can cause a race condition where the backfill overwrites a more recent trigger-based update, or if the compatibility-first trigger successfully prevents any mismatch.",
+      "operations_attempted": [
+        "expand_schema",
+        "payment_event_paid",
+        "backfill_orders",
+        "legacy_order_update_shipped",
+        "new_app_read_status"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n",
+          "rows_affected": 0,
+          "duration_ms": 619.2997000180185,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "payment_event_paid",
+          "phase": "compat",
+          "actor": "Legacy Worker / Trigger",
+          "sql_executed": "INSERT INTO payment_events (order_id, event_type, amount) VALUES (42, 'payment_confirmed', 149.99);",
+          "rows_affected": 1,
+          "duration_ms": 358.67720004171133,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 0,
+          "duration_ms": 178.79669996909797,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped' WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 211.57679986208677,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 5,
+          "operation_id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 217.95079996809363,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 2258.2137999124825,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_3b383fd7",
+      "hypothesis": "Testing if executing legacy updates prior to schema expansion and trigger installation, followed by a backfill, can expose any initialization or ordering issues in the backfill logic.",
+      "operations_attempted": [
+        "payment_event_paid",
+        "legacy_order_update_shipped",
+        "expand_schema",
+        "backfill_orders",
+        "new_app_read_status"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "payment_event_paid",
+          "phase": "compat",
+          "actor": "Legacy Worker / Trigger",
+          "sql_executed": "INSERT INTO payment_events (order_id, event_type, amount) VALUES (42, 'payment_confirmed', 149.99);",
+          "rows_affected": 1,
+          "duration_ms": 161.5707001183182,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped' WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 217.98539999872446,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n",
+          "rows_affected": 0,
+          "duration_ms": 303.2379001379013,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 116.73730006441474,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 5,
+          "operation_id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 92.90130017325282,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 1450.6222000345588,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_da5e5746",
+      "hypothesis": "Testing if running the backfill immediately after schema expansion, followed by concurrent legacy updates, maintains status consistency under all conditions.",
+      "operations_attempted": [
+        "expand_schema",
+        "backfill_orders",
+        "legacy_order_update_shipped",
+        "payment_event_paid",
+        "new_app_read_status"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n",
+          "rows_affected": 0,
+          "duration_ms": 592.3522999510169,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 263.8380001299083,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped' WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 650.7548000663519,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "payment_event_paid",
+          "phase": "compat",
+          "actor": "Legacy Worker / Trigger",
+          "sql_executed": "INSERT INTO payment_events (order_id, event_type, amount) VALUES (42, 'payment_confirmed', 149.99);",
+          "rows_affected": 1,
+          "duration_ms": 198.52109998464584,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 5,
+          "operation_id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 168.99159993045032,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 2927.8375001158565,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_f3dc55a8",
+      "hypothesis": "Testing if executing a legacy update before schema expansion, followed by schema expansion, backfill, and then a subsequent legacy update, maintains consistency under all conditions in this safe rollout control scenario.",
+      "operations_attempted": [
+        "payment_event_paid",
+        "expand_schema",
+        "backfill_orders",
+        "legacy_order_update_shipped",
+        "new_app_read_status"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "payment_event_paid",
+          "phase": "compat",
+          "actor": "Legacy Worker / Trigger",
+          "sql_executed": "INSERT INTO payment_events (order_id, event_type, amount) VALUES (42, 'payment_confirmed', 149.99);",
+          "rows_affected": 1,
+          "duration_ms": 197.17460009269416,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n",
+          "rows_affected": 0,
+          "duration_ms": 219.55529996193945,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 192.60690012015402,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped' WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 219.327500090003,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 5,
+          "operation_id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 173.49680000916123,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 1983.3539999090135,
+      "status": "no_counterexample_found_within_budget"
+    }
+  ],
+  "repair_proposal": null,
+  "repair_replay_trace": null,
+  "trajectories": [
+    {
+      "step_index": 1,
+      "timestamp": "2026-08-30T23:48:28.592347+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "inspect_scenario",
+      "tool_input": {},
+      "tool_output": {
+        "scenario_id": "s1_compat_first_safe",
+        "scenario_name": "Compatibility-First Safe Rollout (Control S1)",
+        "description": "Safe migration rollout where dual-write synchronization trigger is activated before backfill starts. Invariants remain satisfied under all operation orderings.",
+        "remaining_budget": 4,
+        "max_schedule_length": 6,
+        "phases": [
+          {
+            "id": "seed",
+            "name": "Seed Phase",
+            "description": "Initial database state with orders"
+          },
+          {
+            "id": "expand",
+            "name": "Expand Schema",
+            "description": "Add lookup table and status_id column"
+          },
+          {
+            "id": "compat",
+            "name": "Compatibility Phase",
+            "description": "Active sync trigger ensuring dual consistency"
+          },
+          {
+            "id": "backfill",
+            "name": "Backfill Data",
+            "description": "Backfill legacy rows to status_id"
+          },
+          {
+            "id": "cutover",
+            "name": "Cutover Phase",
+            "description": "New app reads status_id"
+          }
+        ],
+        "operations": {
+          "expand_schema": {
+            "id": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "description": "DDL: Create order_statuses lookup table, add status_id column, and install active compatibility sync trigger"
+          },
+          "backfill_orders": {
+            "id": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "description": "DML: Backfill status_id for any legacy rows not yet set"
+          },
+          "payment_event_paid": {
+            "id": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "description": "Payment confirmed event updates status, and sync trigger ensures status_id is updated simultaneously"
+          },
+          "legacy_order_update_shipped": {
+            "id": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "description": "Legacy Application: Update orders.status='shipped', sync trigger updates status_id=3"
+          },
+          "new_app_read_status": {
+            "id": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "description": "New Application: Read status from status_id via lookup join"
+          }
+        },
+        "invariants": [
+          {
+            "id": "status_consistency_invariant",
+            "name": "Status Consistency Invariant",
+            "description": "Whenever orders.status_id is populated, it must match orders.status text exactly."
+          }
+        ],
+        "permitted_repairs": []
+      },
+      "observation_summary": "Inspected scenario 's1_compat_first_safe'. Remaining budget: 4.",
+      "remaining_budget": 4
+    },
+    {
+      "step_index": 2,
+      "timestamp": "2026-08-30T23:48:46.072341+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "payment_event_paid",
+          "backfill_orders",
+          "legacy_order_update_shipped",
+          "new_app_read_status"
+        ],
+        "hypothesis": "Testing if a concurrent update during the backfill phase can cause a race condition where the backfill overwrites a more recent trigger-based update, or if the compatibility-first trigger successfully prevents any mismatch.",
+        "reason": "This schedule executes the schema expansion, performs an update, runs the backfill, performs another update, and then reads the status to verify if the status_id and status text remain consistent across all phases."
+      },
+      "tool_output": {
+        "schedule_id": "sched_e0a6393e",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 5,
+            "op": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 3
+      },
+      "observation_summary": "Executed schedule 'sched_e0a6393e'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 3.",
+      "remaining_budget": 3
+    },
+    {
+      "step_index": 3,
+      "timestamp": "2026-08-30T23:49:03.709413+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "payment_event_paid",
+          "legacy_order_update_shipped",
+          "expand_schema",
+          "backfill_orders",
+          "new_app_read_status"
+        ],
+        "hypothesis": "Testing if executing legacy updates prior to schema expansion and trigger installation, followed by a backfill, can expose any initialization or ordering issues in the backfill logic.",
+        "reason": "This schedule executes legacy updates before the schema is expanded and the trigger is active, then runs the schema expansion, backfill, and read to verify if the backfill correctly handles rows updated prior to trigger installation."
+      },
+      "tool_output": {
+        "schedule_id": "sched_3b383fd7",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 5,
+            "op": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 2
+      },
+      "observation_summary": "Executed schedule 'sched_3b383fd7'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 2.",
+      "remaining_budget": 2
+    },
+    {
+      "step_index": 4,
+      "timestamp": "2026-08-30T23:49:18.608454+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "backfill_orders",
+          "legacy_order_update_shipped",
+          "payment_event_paid",
+          "new_app_read_status"
+        ],
+        "hypothesis": "Testing if running the backfill immediately after schema expansion, followed by concurrent legacy updates, maintains status consistency under all conditions.",
+        "reason": "This schedule tests whether the active compatibility sync trigger correctly handles updates that occur after the backfill has already completed, ensuring no stale data is read by the new application."
+      },
+      "tool_output": {
+        "schedule_id": "sched_da5e5746",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "status": "success"
+          },
+          {
+            "step": 5,
+            "op": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 1
+      },
+      "observation_summary": "Executed schedule 'sched_da5e5746'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 1.",
+      "remaining_budget": 1
+    },
+    {
+      "step_index": 5,
+      "timestamp": "2026-08-30T23:49:31.117612+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "payment_event_paid",
+          "expand_schema",
+          "backfill_orders",
+          "legacy_order_update_shipped",
+          "new_app_read_status"
+        ],
+        "hypothesis": "Testing if executing a legacy update before schema expansion, followed by schema expansion, backfill, and then a subsequent legacy update, maintains consistency under all conditions in this safe rollout control scenario.",
+        "reason": "This schedule tests the interaction of legacy updates occurring both before and after the schema expansion and backfill phases to ensure the compatibility trigger and backfill logic handle the transition seamlessly."
+      },
+      "tool_output": {
+        "schedule_id": "sched_f3dc55a8",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 5,
+            "op": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 0
+      },
+      "observation_summary": "Executed schedule 'sched_f3dc55a8'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 0.",
+      "remaining_budget": 0
+    }
+  ],
+  "wall_clock_seconds": 62.525470700114965,
+  "model_calls": 4,
+  "model_tokens": 8426,
+  "approximate_cost_usd": 0.0,
+  "reasoning_backend": "live_model",
+  "model_provider": "google",
+  "model_name": "gemini-3.5-flash",
+  "prompt_version": "specialised-v2-live-only",
+  "error_message": null,
+  "evaluator_label": "safe"
+}

@@ -1,0 +1,333 @@
+[
+  {
+    "step_index": 1,
+    "timestamp": "2026-08-30T23:52:31.831078+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "inspect_scenario",
+    "tool_input": {},
+    "tool_output": {
+      "scenario_id": "u3_cutover_before_backfill",
+      "scenario_name": "Cutover Before Backfill Completion",
+      "description": "New application cutover begins reading status_id while unbackfilled rows remain with status_id IS NULL.",
+      "remaining_budget": 4,
+      "max_schedule_length": 6,
+      "phases": [
+        {
+          "id": "seed",
+          "name": "Seed Phase",
+          "description": "Initial database state with orders"
+        },
+        {
+          "id": "expand",
+          "name": "Expand Schema",
+          "description": "Add lookup table and status_id column"
+        },
+        {
+          "id": "backfill",
+          "name": "Backfill Data",
+          "description": "Backfill data in batches"
+        },
+        {
+          "id": "cutover",
+          "name": "Cutover Phase",
+          "description": "New app queries status_id directly"
+        }
+      ],
+      "operations": {
+        "expand_schema": {
+          "id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "description": "DDL: Create order_statuses lookup table and add orders.status_id column"
+        },
+        "legacy_insert_new_order_99": {
+          "id": "legacy_insert_new_order_99",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Insert new order 99 with status 'pending' during migration"
+        },
+        "backfill_batch_partial": {
+          "id": "backfill_batch_partial",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "description": "DML: Backfill only orders where id < 50 (leaving order 99 unbackfilled)"
+        },
+        "backfill_orders_all": {
+          "id": "backfill_orders_all",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "description": "DML: Complete backfill for all remaining rows"
+        },
+        "new_app_cutover_read_99": {
+          "id": "new_app_cutover_read_99",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "description": "New Application: Read status of order 99 via status_id FK join"
+        }
+      },
+      "invariants": [
+        {
+          "id": "backfill_completeness_invariant",
+          "name": "Backfill Completeness & Status Integrity Invariant",
+          "description": "Returns any orders where status_id is NULL or status_id does not match status text."
+        }
+      ],
+      "permitted_repairs": [
+        {
+          "id": "repair_full_backfill_and_verification_gate",
+          "name": "Enforce Full Backfill & Reconciliation Before Cutover",
+          "description": "Run complete backfill and verify zero null status_id rows before cutover reads begin.",
+          "patch_type": "full_backfill_gate"
+        }
+      ]
+    },
+    "observation_summary": "Inspected scenario 'u3_cutover_before_backfill'. Remaining budget: 4.",
+    "remaining_budget": 4
+  },
+  {
+    "step_index": 2,
+    "timestamp": "2026-08-30T23:52:32.156821+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "backfill_batch_partial",
+        "backfill_orders_all",
+        "new_app_cutover_read_99",
+        "expand_schema",
+        "legacy_insert_new_order_99"
+      ],
+      "hypothesis": "Heuristic/Random schedule candidate #1 (seed 42)",
+      "reason": "Testing combinatorial operation interleaving without model guidance"
+    },
+    "tool_output": {
+      "schedule_id": "sched_f1cd2015",
+      "status": "execution_error",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "backfill_batch_partial",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "failed"
+        }
+      ],
+      "invariants_checked": [],
+      "remaining_budget": 3
+    },
+    "observation_summary": "Executed schedule 'sched_f1cd2015'. Violation found: False. Status: execution_error. Remaining budget: 3.",
+    "remaining_budget": 3
+  },
+  {
+    "step_index": 3,
+    "timestamp": "2026-08-30T23:52:33.254454+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "legacy_insert_new_order_99",
+        "expand_schema",
+        "new_app_cutover_read_99",
+        "backfill_orders_all",
+        "backfill_batch_partial"
+      ],
+      "hypothesis": "Heuristic/Random schedule candidate #2 (seed 42)",
+      "reason": "Testing combinatorial operation interleaving without model guidance"
+    },
+    "tool_output": {
+      "schedule_id": "sched_c2670151",
+      "status": "no_counterexample_found_within_budget",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "legacy_insert_new_order_99",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "new_app_cutover_read_99",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "backfill_orders_all",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "backfill_batch_partial",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "backfill_completeness_invariant",
+          "passed": true,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 2
+    },
+    "observation_summary": "Executed schedule 'sched_c2670151'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 2.",
+    "remaining_budget": 2
+  },
+  {
+    "step_index": 4,
+    "timestamp": "2026-08-30T23:52:35.356890+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "new_app_cutover_read_99",
+        "backfill_batch_partial",
+        "legacy_insert_new_order_99",
+        "backfill_orders_all"
+      ],
+      "hypothesis": "Heuristic/Random schedule candidate #3 (seed 42)",
+      "reason": "Testing combinatorial operation interleaving without model guidance"
+    },
+    "tool_output": {
+      "schedule_id": "sched_adeb9a0d",
+      "status": "no_counterexample_found_within_budget",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "new_app_cutover_read_99",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "backfill_batch_partial",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "legacy_insert_new_order_99",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "backfill_orders_all",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "backfill_completeness_invariant",
+          "passed": true,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 1
+    },
+    "observation_summary": "Executed schedule 'sched_adeb9a0d'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 1.",
+    "remaining_budget": 1
+  },
+  {
+    "step_index": 5,
+    "timestamp": "2026-08-30T23:52:36.248935+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "legacy_insert_new_order_99",
+        "expand_schema",
+        "backfill_batch_partial"
+      ],
+      "hypothesis": "Heuristic/Random schedule candidate #4 (seed 42)",
+      "reason": "Testing combinatorial operation interleaving without model guidance"
+    },
+    "tool_output": {
+      "schedule_id": "sched_240f2310",
+      "status": "verified_counterexample_found",
+      "has_violation": true,
+      "first_violating_boundary": "backfill_completeness_invariant",
+      "violating_evidence_rows": [
+        {
+          "id": 99,
+          "legacy_status": "pending",
+          "status_id": null,
+          "lookup_status": null
+        }
+      ],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "legacy_insert_new_order_99",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "backfill_batch_partial",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "backfill_completeness_invariant",
+          "passed": false,
+          "violating_rows_count": 1
+        }
+      ],
+      "remaining_budget": 0
+    },
+    "observation_summary": "Executed schedule 'sched_240f2310'. Violation found: True. Status: verified_counterexample_found. Remaining budget: 0.",
+    "remaining_budget": 0
+  }
+]

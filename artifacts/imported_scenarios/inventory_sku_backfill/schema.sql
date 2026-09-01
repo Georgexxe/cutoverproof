@@ -1,0 +1,1 @@
+CREATE TABLE products (id INT PRIMARY KEY, sku TEXT NOT NULL, sku_id INT); CREATE TABLE sku_catalog (id INT PRIMARY KEY, code TEXT UNIQUE NOT NULL);

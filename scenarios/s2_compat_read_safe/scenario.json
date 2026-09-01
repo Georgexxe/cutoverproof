@@ -1,0 +1,80 @@
+{
+  "id": "s2_compat_read_safe",
+  "name": "Compatibility-Read Safe Rollout (Control S2)",
+  "description": "Safe rollout where application uses a compatibility read abstraction during rollout until completed reconciliation and verification.",
+  "evaluator_label": "safe",
+  "max_candidates": 8,
+  "max_schedule_length": 6,
+  "schema_file": "schema.sql",
+  "seed_file": "seed.sql",
+  "expand_file": "expand.sql",
+  "invariants_file": "invariants.sql",
+  "repair_file": "repair.sql",
+  "phases": [
+    {
+      "id": "seed",
+      "name": "Seed Phase",
+      "description": "Initial database state with orders"
+    },
+    {
+      "id": "expand",
+      "name": "Expand Schema",
+      "description": "Add lookup table, status_id column, and compatibility view"
+    },
+    {
+      "id": "compat",
+      "name": "Compatibility Phase",
+      "description": "Active sync trigger and compatibility read path"
+    },
+    {
+      "id": "backfill",
+      "name": "Backfill Data",
+      "description": "Backfill legacy rows to status_id"
+    },
+    {
+      "id": "cutover",
+      "name": "Cutover Phase",
+      "description": "New app queries via compatibility read layer"
+    }
+  ],
+  "operations": {
+    "expand_schema": {
+      "id": "expand_schema",
+      "phase": "expand",
+      "actor": "Migration Coordinator",
+      "description": "DDL: Create order_statuses, add status_id, and install compatibility view and sync triggers",
+      "sql": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id); CREATE OR REPLACE VIEW v_orders_compat AS SELECT o.id, o.customer_id, o.total_amount, COALESCE(os.name, o.status) AS resolved_status, o.status_id FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id;"
+    },
+    "backfill_orders": {
+      "id": "backfill_orders",
+      "phase": "backfill",
+      "actor": "Backfill Worker",
+      "description": "DML: Backfill status_id from orders.status",
+      "sql": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;"
+    },
+    "legacy_order_update_shipped": {
+      "id": "legacy_order_update_shipped",
+      "phase": "compat",
+      "actor": "Legacy Worker",
+      "description": "Legacy Application: Update status='shipped'",
+      "sql": "UPDATE orders SET status = 'shipped', status_id = 3 WHERE id = 42;"
+    },
+    "new_app_read_compat": {
+      "id": "new_app_read_compat",
+      "phase": "cutover",
+      "actor": "New App Reader",
+      "description": "New Application: Read through compatibility view",
+      "sql": "SELECT id, resolved_status FROM v_orders_compat WHERE id = 42;"
+    }
+  },
+  "invariants": [
+    {
+      "id": "compat_read_consistency_invariant",
+      "name": "Compatibility View Consistency Invariant",
+      "description": "Ensures that compatibility view resolved_status matches status when status_id is set.",
+      "sql": "SELECT o.id, o.status, o.status_id, v.resolved_status FROM orders o JOIN v_orders_compat v ON o.id = v.id WHERE o.status_id IS NOT NULL AND o.status != v.resolved_status;"
+    }
+  ],
+  "known_failing_schedule": [],
+  "permitted_repairs": []
+}

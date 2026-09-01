@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cutoverproof-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cutover
+      POSTGRES_PASSWORD: proof_sandbox_password
+      POSTGRES_DB: cutoverproof_sandbox
+    ports:
+      - "5432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cutover -d cutoverproof_sandbox"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

@@ -1,0 +1,282 @@
+[
+  {
+    "step_index": 1,
+    "timestamp": "2026-08-30T23:51:55.163064+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "inspect_scenario",
+    "tool_input": {},
+    "tool_output": {
+      "scenario_id": "u2_legacy_update_after_backfill",
+      "scenario_name": "Legacy Cancellation Update After Backfill Batch",
+      "description": "A legacy cancellation updates only the text status to refunded after that row has already been processed by the backfill. The new status_id identifier remains stale as pending.",
+      "remaining_budget": 4,
+      "max_schedule_length": 6,
+      "phases": [
+        {
+          "id": "seed",
+          "name": "Seed Phase",
+          "description": "Initial database state with orders table"
+        },
+        {
+          "id": "expand",
+          "name": "Expand Schema",
+          "description": "Add order_statuses lookup and status_id FK"
+        },
+        {
+          "id": "backfill",
+          "name": "Backfill Data",
+          "description": "Backfill existing orders to status_id"
+        },
+        {
+          "id": "compat",
+          "name": "Compatibility Phase",
+          "description": "Dual-write / trigger synchronization"
+        },
+        {
+          "id": "cutover",
+          "name": "Cutover Phase",
+          "description": "New app readers query status_id"
+        }
+      ],
+      "operations": {
+        "expand_schema": {
+          "id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "description": "DDL: Create order_statuses lookup table and add orders.status_id column"
+        },
+        "backfill_orders": {
+          "id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "description": "DML: Backfill orders.status_id from orders.status based on order_statuses lookup"
+        },
+        "legacy_order_cancel_refund": {
+          "id": "legacy_order_cancel_refund",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Cancel/refund order by updating orders.status = 'refunded' directly"
+        },
+        "legacy_order_mark_shipped": {
+          "id": "legacy_order_mark_shipped",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Mark order as shipped by updating orders.status = 'shipped'"
+        },
+        "new_app_read_status": {
+          "id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "description": "New Application: Read status from status_id via order_statuses join"
+        }
+      },
+      "invariants": [
+        {
+          "id": "status_consistency_invariant",
+          "name": "Status Consistency Invariant",
+          "description": "Whenever orders.status_id is populated, it must match orders.status text exactly."
+        }
+      ],
+      "permitted_repairs": [
+        {
+          "id": "repair_sync_trigger_before_backfill",
+          "name": "Install Sync Trigger Before Backfill",
+          "description": "Ensure any direct legacy status update propagates to status_id immediately.",
+          "patch_type": "sync_trigger"
+        }
+      ]
+    },
+    "observation_summary": "Inspected scenario 'u2_legacy_update_after_backfill'. Remaining budget: 4.",
+    "remaining_budget": 4
+  },
+  {
+    "step_index": 2,
+    "timestamp": "2026-08-30T23:51:55.556837+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "backfill_orders",
+        "new_app_read_status",
+        "expand_schema",
+        "legacy_order_cancel_refund",
+        "legacy_order_mark_shipped"
+      ],
+      "hypothesis": "Heuristic/Random schedule candidate #1 (seed 42)",
+      "reason": "Testing combinatorial operation interleaving without model guidance"
+    },
+    "tool_output": {
+      "schedule_id": "sched_c3728a86",
+      "status": "execution_error",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "failed"
+        }
+      ],
+      "invariants_checked": [],
+      "remaining_budget": 3
+    },
+    "observation_summary": "Executed schedule 'sched_c3728a86'. Violation found: False. Status: execution_error. Remaining budget: 3.",
+    "remaining_budget": 3
+  },
+  {
+    "step_index": 3,
+    "timestamp": "2026-08-30T23:51:56.712300+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "legacy_order_mark_shipped",
+        "legacy_order_cancel_refund",
+        "expand_schema",
+        "new_app_read_status",
+        "backfill_orders"
+      ],
+      "hypothesis": "Heuristic/Random schedule candidate #2 (seed 42)",
+      "reason": "Testing combinatorial operation interleaving without model guidance"
+    },
+    "tool_output": {
+      "schedule_id": "sched_6dd0b900",
+      "status": "no_counterexample_found_within_budget",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "legacy_order_mark_shipped",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "legacy_order_cancel_refund",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 2
+    },
+    "observation_summary": "Executed schedule 'sched_6dd0b900'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 2.",
+    "remaining_budget": 2
+  },
+  {
+    "step_index": 4,
+    "timestamp": "2026-08-30T23:51:57.524787+00:00",
+    "agent_id": "A2_random_heuristic",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "new_app_read_status",
+        "legacy_order_cancel_refund",
+        "backfill_orders",
+        "legacy_order_mark_shipped"
+      ],
+      "hypothesis": "Heuristic/Random schedule candidate #3 (seed 42)",
+      "reason": "Testing combinatorial operation interleaving without model guidance"
+    },
+    "tool_output": {
+      "schedule_id": "sched_a8411ac9",
+      "status": "verified_counterexample_found",
+      "has_violation": true,
+      "first_violating_boundary": "status_consistency_invariant",
+      "violating_evidence_rows": [
+        {
+          "id": 42,
+          "legacy_status": "shipped",
+          "status_id": 4,
+          "lookup_status": "refunded"
+        }
+      ],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "legacy_order_cancel_refund",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "legacy_order_mark_shipped",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": false,
+          "violating_rows_count": 1
+        }
+      ],
+      "remaining_budget": 1
+    },
+    "observation_summary": "Executed schedule 'sched_a8411ac9'. Violation found: True. Status: verified_counterexample_found. Remaining budget: 1.",
+    "remaining_budget": 1
+  }
+]

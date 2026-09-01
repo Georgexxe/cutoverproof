@@ -1,0 +1,86 @@
+[
+  {
+    "step_index": 1,
+    "timestamp": "2026-08-31T08:35:42.970667+00:00",
+    "agent_id": "A3_specialised_agent",
+    "action_type": "tool_call",
+    "tool_name": "inspect_scenario",
+    "tool_input": {},
+    "tool_output": {
+      "scenario_id": "s1_compat_first_safe",
+      "scenario_name": "Compatibility-First Safe Rollout (Control S1)",
+      "description": "Safe migration rollout where dual-write synchronization trigger is activated before backfill starts. Invariants remain satisfied under all operation orderings.",
+      "remaining_budget": 1,
+      "max_schedule_length": 6,
+      "phases": [
+        {
+          "id": "seed",
+          "name": "Seed Phase",
+          "description": "Initial database state with orders"
+        },
+        {
+          "id": "expand",
+          "name": "Expand Schema",
+          "description": "Add lookup table and status_id column"
+        },
+        {
+          "id": "compat",
+          "name": "Compatibility Phase",
+          "description": "Active sync trigger ensuring dual consistency"
+        },
+        {
+          "id": "backfill",
+          "name": "Backfill Data",
+          "description": "Backfill legacy rows to status_id"
+        },
+        {
+          "id": "cutover",
+          "name": "Cutover Phase",
+          "description": "New app reads status_id"
+        }
+      ],
+      "operations": {
+        "expand_schema": {
+          "id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "description": "DDL: Create order_statuses lookup table, add status_id column, and install active compatibility sync trigger"
+        },
+        "backfill_orders": {
+          "id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "description": "DML: Backfill status_id for any legacy rows not yet set"
+        },
+        "payment_event_paid": {
+          "id": "payment_event_paid",
+          "phase": "compat",
+          "actor": "Legacy Worker / Trigger",
+          "description": "Payment confirmed event updates status, and sync trigger ensures status_id is updated simultaneously"
+        },
+        "legacy_order_update_shipped": {
+          "id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Update orders.status='shipped', sync trigger updates status_id=3"
+        },
+        "new_app_read_status": {
+          "id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "description": "New Application: Read status from status_id via lookup join"
+        }
+      },
+      "invariants": [
+        {
+          "id": "status_consistency_invariant",
+          "name": "Status Consistency Invariant",
+          "description": "Whenever orders.status_id is populated, it must match orders.status text exactly."
+        }
+      ],
+      "permitted_repairs": []
+    },
+    "observation_summary": "Inspected scenario 's1_compat_first_safe'. Remaining budget: 1.",
+    "remaining_budget": 1
+  }
+]

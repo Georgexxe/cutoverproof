@@ -1,0 +1,1 @@
+INSERT INTO customer_accounts VALUES (11, 'Old@Example.com', NULL);

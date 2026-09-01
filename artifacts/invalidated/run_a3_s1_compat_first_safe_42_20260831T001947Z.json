@@ -1,0 +1,518 @@
+{
+  "run_id": "run_a3_s1_compat_first_safe_42",
+  "scenario_id": "s1_compat_first_safe",
+  "scenario_name": "Compatibility-First Safe Rollout (Control S1)",
+  "approach_id": "A3_specialised_agent",
+  "seed": 42,
+  "max_budget": 4,
+  "candidates_attempted": 3,
+  "status": "agent_error",
+  "verified_counterexample_found": false,
+  "first_counterexample_index": null,
+  "winning_schedule": null,
+  "traces": [
+    {
+      "schedule_id": "sched_04f976ec",
+      "hypothesis": "The backfill process might overwrite a more recent status update performed by the trigger if the backfill reads the legacy status before the trigger completes, but writes the status_id after the trigger has already updated the row.",
+      "operations_attempted": [
+        "expand_schema",
+        "legacy_order_update_shipped",
+        "backfill_orders",
+        "new_app_read_status"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n",
+          "rows_affected": 0,
+          "duration_ms": 123.2215000782162,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped' WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 87.79590018093586,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 0,
+          "duration_ms": 101.98129992932081,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 109.6894999500364,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 772.1087001264095,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_27c9b8fa",
+      "hypothesis": "If the backfill process reads the legacy status, then a concurrent payment event updates the status and triggers the sync, the backfill process might perform a stale write of status_id based on the previously read status, effectively reverting the trigger's update.",
+      "operations_attempted": [
+        "expand_schema",
+        "backfill_orders",
+        "payment_event_paid",
+        "new_app_read_status"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n",
+          "rows_affected": 0,
+          "duration_ms": 277.56879990920424,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 150.8832999970764,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "payment_event_paid",
+          "phase": "compat",
+          "actor": "Legacy Worker / Trigger",
+          "sql_executed": "INSERT INTO payment_events (order_id, event_type, amount) VALUES (42, 'payment_confirmed', 149.99);",
+          "rows_affected": 1,
+          "duration_ms": 142.18339999206364,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 134.05860005877912,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 1260.2830999530852,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_d5973eda",
+      "hypothesis": "If the backfill process reads the legacy status, then the legacy application updates the status and triggers the sync, and finally the backfill process performs its write, the backfill will overwrite the correct status_id set by the trigger with a stale value derived from the initial read.",
+      "operations_attempted": [
+        "expand_schema",
+        "backfill_orders",
+        "legacy_order_update_shipped",
+        "backfill_orders"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n",
+          "rows_affected": 0,
+          "duration_ms": 216.56879992224276,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 290.71930004283786,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped' WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 245.43400015681982,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 0,
+          "duration_ms": 377.88090016692877,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 2176.1543001048267,
+      "status": "no_counterexample_found_within_budget"
+    }
+  ],
+  "repair_proposal": null,
+  "repair_replay_trace": null,
+  "trajectories": [
+    {
+      "step_index": 1,
+      "timestamp": "2026-08-31T00:13:46.510420+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "inspect_scenario",
+      "tool_input": {},
+      "tool_output": {
+        "scenario_id": "s1_compat_first_safe",
+        "scenario_name": "Compatibility-First Safe Rollout (Control S1)",
+        "description": "Safe migration rollout where dual-write synchronization trigger is activated before backfill starts. Invariants remain satisfied under all operation orderings.",
+        "remaining_budget": 4,
+        "max_schedule_length": 6,
+        "phases": [
+          {
+            "id": "seed",
+            "name": "Seed Phase",
+            "description": "Initial database state with orders"
+          },
+          {
+            "id": "expand",
+            "name": "Expand Schema",
+            "description": "Add lookup table and status_id column"
+          },
+          {
+            "id": "compat",
+            "name": "Compatibility Phase",
+            "description": "Active sync trigger ensuring dual consistency"
+          },
+          {
+            "id": "backfill",
+            "name": "Backfill Data",
+            "description": "Backfill legacy rows to status_id"
+          },
+          {
+            "id": "cutover",
+            "name": "Cutover Phase",
+            "description": "New app reads status_id"
+          }
+        ],
+        "operations": {
+          "expand_schema": {
+            "id": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "description": "DDL: Create order_statuses lookup table, add status_id column, and install active compatibility sync trigger"
+          },
+          "backfill_orders": {
+            "id": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "description": "DML: Backfill status_id for any legacy rows not yet set"
+          },
+          "payment_event_paid": {
+            "id": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "description": "Payment confirmed event updates status, and sync trigger ensures status_id is updated simultaneously"
+          },
+          "legacy_order_update_shipped": {
+            "id": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "description": "Legacy Application: Update orders.status='shipped', sync trigger updates status_id=3"
+          },
+          "new_app_read_status": {
+            "id": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "description": "New Application: Read status from status_id via lookup join"
+          }
+        },
+        "invariants": [
+          {
+            "id": "status_consistency_invariant",
+            "name": "Status Consistency Invariant",
+            "description": "Whenever orders.status_id is populated, it must match orders.status text exactly."
+          }
+        ],
+        "permitted_repairs": []
+      },
+      "observation_summary": "Inspected scenario 's1_compat_first_safe'. Remaining budget: 4.",
+      "remaining_budget": 4
+    },
+    {
+      "step_index": 2,
+      "timestamp": "2026-08-31T00:13:52.074338+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "legacy_order_update_shipped",
+          "backfill_orders",
+          "new_app_read_status"
+        ],
+        "hypothesis": "The backfill process might overwrite a more recent status update performed by the trigger if the backfill reads the legacy status before the trigger completes, but writes the status_id after the trigger has already updated the row.",
+        "reason": "This schedule tests if the backfill worker's read-modify-write cycle can race against the trigger's update, potentially reverting a status_id to a stale state if the backfill logic does not account for concurrent trigger updates."
+      },
+      "tool_output": {
+        "schedule_id": "sched_04f976ec",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 3
+      },
+      "observation_summary": "Executed schedule 'sched_04f976ec'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 3.",
+      "remaining_budget": 3
+    },
+    {
+      "step_index": 3,
+      "timestamp": "2026-08-31T00:13:55.844864+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "backfill_orders",
+          "payment_event_paid",
+          "new_app_read_status"
+        ],
+        "hypothesis": "If the backfill process reads the legacy status, then a concurrent payment event updates the status and triggers the sync, the backfill process might perform a stale write of status_id based on the previously read status, effectively reverting the trigger's update.",
+        "reason": "This schedule tests the race condition where the backfill worker's read-modify-write cycle overlaps with the trigger's execution, potentially causing a lost update on the status_id column."
+      },
+      "tool_output": {
+        "schedule_id": "sched_27c9b8fa",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 2
+      },
+      "observation_summary": "Executed schedule 'sched_27c9b8fa'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 2.",
+      "remaining_budget": 2
+    },
+    {
+      "step_index": 4,
+      "timestamp": "2026-08-31T00:14:01.624378+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "backfill_orders",
+          "legacy_order_update_shipped",
+          "backfill_orders"
+        ],
+        "hypothesis": "If the backfill process reads the legacy status, then the legacy application updates the status and triggers the sync, and finally the backfill process performs its write, the backfill will overwrite the correct status_id set by the trigger with a stale value derived from the initial read.",
+        "reason": "This schedule tests the race condition where a backfill operation is interrupted by a concurrent update and then completes its write using stale data, potentially reverting the trigger's synchronization."
+      },
+      "tool_output": {
+        "schedule_id": "sched_d5973eda",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 1
+      },
+      "observation_summary": "Executed schedule 'sched_d5973eda'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 1.",
+      "remaining_budget": 1
+    }
+  ],
+  "wall_clock_seconds": 58.52070189989172,
+  "model_calls": 8,
+  "model_tokens": 10426,
+  "approximate_cost_usd": 0.0,
+  "reasoning_backend": "live_model",
+  "model_provider": "google",
+  "model_name": "gemini-3.1-flash-lite",
+  "prompt_version": "specialised-v2-live-only",
+  "error_message": "Planning-attempt limit exhausted after repeated malformed, unsupported, or duplicate model outputs.",
+  "evaluator_label": "safe"
+}

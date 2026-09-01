@@ -1,0 +1,87 @@
+{
+  "id": "s1_compat_first_safe",
+  "name": "Compatibility-First Safe Rollout (Control S1)",
+  "description": "Safe migration rollout where dual-write synchronization trigger is activated before backfill starts. Invariants remain satisfied under all operation orderings.",
+  "evaluator_label": "safe",
+  "max_candidates": 8,
+  "max_schedule_length": 6,
+  "schema_file": "schema.sql",
+  "seed_file": "seed.sql",
+  "expand_file": "expand.sql",
+  "invariants_file": "invariants.sql",
+  "repair_file": "repair.sql",
+  "phases": [
+    {
+      "id": "seed",
+      "name": "Seed Phase",
+      "description": "Initial database state with orders"
+    },
+    {
+      "id": "expand",
+      "name": "Expand Schema",
+      "description": "Add lookup table and status_id column"
+    },
+    {
+      "id": "compat",
+      "name": "Compatibility Phase",
+      "description": "Active sync trigger ensuring dual consistency"
+    },
+    {
+      "id": "backfill",
+      "name": "Backfill Data",
+      "description": "Backfill legacy rows to status_id"
+    },
+    {
+      "id": "cutover",
+      "name": "Cutover Phase",
+      "description": "New app reads status_id"
+    }
+  ],
+  "operations": {
+    "expand_schema": {
+      "id": "expand_schema",
+      "phase": "expand",
+      "actor": "Migration Coordinator",
+      "description": "DDL: Create order_statuses lookup table, add status_id column, and install active compatibility sync trigger",
+      "sql": "\nCREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL);\nINSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING;\nALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);\n\nCREATE OR REPLACE FUNCTION sync_status_compat() RETURNS TRIGGER AS '\nBEGIN\n    IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status_id IS NOT DISTINCT FROM OLD.status_id) THEN\n        SELECT id INTO NEW.status_id FROM order_statuses WHERE name = NEW.status;\n    ELSIF NEW.status_id IS DISTINCT FROM OLD.status_id AND (NEW.status IS NOT DISTINCT FROM OLD.status) THEN\n        SELECT name INTO NEW.status FROM order_statuses WHERE id = NEW.status_id;\n    END IF;\n    RETURN NEW;\nEND;\n' LANGUAGE plpgsql;\n\nDROP TRIGGER IF EXISTS trg_sync_status ON orders;\nCREATE TRIGGER trg_sync_status BEFORE UPDATE OR INSERT ON orders FOR EACH ROW EXECUTE FUNCTION sync_status_compat();\n"
+    },
+    "backfill_orders": {
+      "id": "backfill_orders",
+      "phase": "backfill",
+      "actor": "Backfill Worker",
+      "description": "DML: Backfill status_id for any legacy rows not yet set",
+      "sql": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;"
+    },
+    "payment_event_paid": {
+      "id": "payment_event_paid",
+      "phase": "compat",
+      "actor": "Legacy Worker / Trigger",
+      "description": "Payment confirmed event updates status, and sync trigger ensures status_id is updated simultaneously",
+      "sql": "INSERT INTO payment_events (order_id, event_type, amount) VALUES (42, 'payment_confirmed', 149.99);"
+    },
+    "legacy_order_update_shipped": {
+      "id": "legacy_order_update_shipped",
+      "phase": "compat",
+      "actor": "Legacy Worker",
+      "description": "Legacy Application: Update orders.status='shipped', sync trigger updates status_id=3",
+      "sql": "UPDATE orders SET status = 'shipped' WHERE id = 42;"
+    },
+    "new_app_read_status": {
+      "id": "new_app_read_status",
+      "phase": "cutover",
+      "actor": "New App Reader",
+      "description": "New Application: Read status from status_id via lookup join",
+      "sql": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 42;"
+    }
+  },
+  "invariants": [
+    {
+      "id": "status_consistency_invariant",
+      "name": "Status Consistency Invariant",
+      "description": "Whenever orders.status_id is populated, it must match orders.status text exactly.",
+      "sql": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;"
+    }
+  ],
+  "known_failing_schedule": [],
+  "permitted_repairs": []
+}

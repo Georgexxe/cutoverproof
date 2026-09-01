@@ -1,0 +1,65 @@
+{
+  "budget": 4,
+  "seed": 42,
+  "generated_at": "2026-08-31T00:20:27.642853+00:00",
+  "requested_model": "gemini-3.1-flash-lite",
+  "scenarios_evaluated": [
+    "s1_compat_first_safe",
+    "s2_compat_read_safe",
+    "u1_status_trigger_race",
+    "u2_legacy_update_after_backfill",
+    "u3_cutover_before_backfill"
+  ],
+  "metrics_summary": {
+    "A2_random_heuristic": {
+      "unsafe_detection_recall": "3/3",
+      "safe_false_rejection_rate": "0/2",
+      "avg_candidates_to_counterexample": 3.0,
+      "mean_unsafe_search_effort_misses_as_budget_plus_one": 3.0,
+      "total_wall_clock_seconds": 15.26,
+      "total_model_calls": 0,
+      "total_model_tokens": 0,
+      "total_estimated_cost_usd": 0.0,
+      "invalid_runs": 0
+    },
+    "A1_one_shot_llm": {
+      "unsafe_detection_recall": "2/3",
+      "safe_false_rejection_rate": "0/2",
+      "avg_candidates_to_counterexample": 1.0,
+      "mean_unsafe_search_effort_misses_as_budget_plus_one": 2.33,
+      "total_wall_clock_seconds": 57.04,
+      "total_model_calls": 5,
+      "total_model_tokens": 3122,
+      "total_estimated_cost_usd": null,
+      "invalid_runs": 0
+    },
+    "A3_specialised_agent": {
+      "unsafe_detection_recall": "3/3",
+      "safe_false_rejection_rate": "0/2",
+      "avg_candidates_to_counterexample": 1.0,
+      "mean_unsafe_search_effort_misses_as_budget_plus_one": 1.0,
+      "total_wall_clock_seconds": 108.94,
+      "total_model_calls": 15,
+      "total_model_tokens": 15678,
+      "total_estimated_cost_usd": null,
+      "invalid_runs": 0
+    }
+  },
+  "individual_runs": [
+    "run_a2_s1_compat_first_safe_42",
+    "run_a1_s1_compat_first_safe_42",
+    "run_a3_s1_compat_first_safe_42",
+    "run_a2_s2_compat_read_safe_42",
+    "run_a1_s2_compat_read_safe_42",
+    "run_a3_s2_compat_read_safe_42",
+    "run_a2_u1_status_trigger_race_42",
+    "run_a1_u1_status_trigger_race_42",
+    "run_a3_u1_status_trigger_race_42",
+    "run_a2_u2_legacy_update_after_backfill_42",
+    "run_a1_u2_legacy_update_after_backfill_42",
+    "run_a3_u2_legacy_update_after_backfill_42",
+    "run_a2_u3_cutover_before_backfill_42",
+    "run_a1_u3_cutover_before_backfill_42",
+    "run_a3_u3_cutover_before_backfill_42"
+  ]
+}

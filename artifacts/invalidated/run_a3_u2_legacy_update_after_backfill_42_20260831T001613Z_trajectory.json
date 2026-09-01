@@ -1,0 +1,164 @@
+[
+  {
+    "step_index": 1,
+    "timestamp": "2026-08-31T00:09:08.614842+00:00",
+    "agent_id": "A3_specialised_agent",
+    "action_type": "tool_call",
+    "tool_name": "inspect_scenario",
+    "tool_input": {},
+    "tool_output": {
+      "scenario_id": "u2_legacy_update_after_backfill",
+      "scenario_name": "Legacy Cancellation Update After Backfill Batch",
+      "description": "A legacy cancellation updates only the text status to refunded after that row has already been processed by the backfill. The new status_id identifier remains stale as pending.",
+      "remaining_budget": 4,
+      "max_schedule_length": 6,
+      "phases": [
+        {
+          "id": "seed",
+          "name": "Seed Phase",
+          "description": "Initial database state with orders table"
+        },
+        {
+          "id": "expand",
+          "name": "Expand Schema",
+          "description": "Add order_statuses lookup and status_id FK"
+        },
+        {
+          "id": "backfill",
+          "name": "Backfill Data",
+          "description": "Backfill existing orders to status_id"
+        },
+        {
+          "id": "compat",
+          "name": "Compatibility Phase",
+          "description": "Dual-write / trigger synchronization"
+        },
+        {
+          "id": "cutover",
+          "name": "Cutover Phase",
+          "description": "New app readers query status_id"
+        }
+      ],
+      "operations": {
+        "expand_schema": {
+          "id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "description": "DDL: Create order_statuses lookup table and add orders.status_id column"
+        },
+        "backfill_orders": {
+          "id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "description": "DML: Backfill orders.status_id from orders.status based on order_statuses lookup"
+        },
+        "legacy_order_cancel_refund": {
+          "id": "legacy_order_cancel_refund",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Cancel/refund order by updating orders.status = 'refunded' directly"
+        },
+        "legacy_order_mark_shipped": {
+          "id": "legacy_order_mark_shipped",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Mark order as shipped by updating orders.status = 'shipped'"
+        },
+        "new_app_read_status": {
+          "id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "description": "New Application: Read status from status_id via order_statuses join"
+        }
+      },
+      "invariants": [
+        {
+          "id": "status_consistency_invariant",
+          "name": "Status Consistency Invariant",
+          "description": "Whenever orders.status_id is populated, it must match orders.status text exactly."
+        }
+      ],
+      "permitted_repairs": [
+        {
+          "id": "repair_sync_trigger_before_backfill",
+          "name": "Install Sync Trigger Before Backfill",
+          "description": "Ensure any direct legacy status update propagates to status_id immediately.",
+          "patch_type": "sync_trigger"
+        }
+      ]
+    },
+    "observation_summary": "Inspected scenario 'u2_legacy_update_after_backfill'. Remaining budget: 4.",
+    "remaining_budget": 4
+  },
+  {
+    "step_index": 2,
+    "timestamp": "2026-08-31T00:09:12.439743+00:00",
+    "agent_id": "A3_specialised_agent",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "backfill_orders",
+        "legacy_order_cancel_refund",
+        "new_app_read_status"
+      ],
+      "hypothesis": "Running backfill before a legacy cancellation update leaves status_id stale as pending while status becomes refunded, violating the status consistency invariant.",
+      "reason": "Tests whether updating the legacy status column after the backfill batch has completed causes a divergence between orders.status and orders.status_id."
+    },
+    "tool_output": {
+      "schedule_id": "sched_8ff76177",
+      "status": "verified_counterexample_found",
+      "has_violation": true,
+      "first_violating_boundary": "status_consistency_invariant",
+      "violating_evidence_rows": [
+        {
+          "id": 42,
+          "legacy_status": "refunded",
+          "status_id": 1,
+          "lookup_status": "pending"
+        }
+      ],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "legacy_order_cancel_refund",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": false,
+          "violating_rows_count": 1
+        }
+      ],
+      "remaining_budget": 3
+    },
+    "observation_summary": "Executed schedule 'sched_8ff76177'. Violation found: True. Status: verified_counterexample_found. Remaining budget: 3.",
+    "remaining_budget": 3
+  }
+]

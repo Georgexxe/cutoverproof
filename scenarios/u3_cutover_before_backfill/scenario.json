@@ -1,0 +1,94 @@
+{
+  "id": "u3_cutover_before_backfill",
+  "name": "Cutover Before Backfill Completion",
+  "description": "New application cutover begins reading status_id while unbackfilled rows remain with status_id IS NULL.",
+  "evaluator_label": "unsafe",
+  "max_candidates": 8,
+  "max_schedule_length": 6,
+  "schema_file": "schema.sql",
+  "seed_file": "seed.sql",
+  "expand_file": "expand.sql",
+  "invariants_file": "invariants.sql",
+  "repair_file": "repair.sql",
+  "phases": [
+    {
+      "id": "seed",
+      "name": "Seed Phase",
+      "description": "Initial database state with orders"
+    },
+    {
+      "id": "expand",
+      "name": "Expand Schema",
+      "description": "Add lookup table and status_id column"
+    },
+    {
+      "id": "backfill",
+      "name": "Backfill Data",
+      "description": "Backfill data in batches"
+    },
+    {
+      "id": "cutover",
+      "name": "Cutover Phase",
+      "description": "New app queries status_id directly"
+    }
+  ],
+  "operations": {
+    "expand_schema": {
+      "id": "expand_schema",
+      "phase": "expand",
+      "actor": "Migration Coordinator",
+      "description": "DDL: Create order_statuses lookup table and add orders.status_id column",
+      "sql": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);"
+    },
+    "legacy_insert_new_order_99": {
+      "id": "legacy_insert_new_order_99",
+      "phase": "seed",
+      "actor": "Legacy Worker",
+      "description": "Legacy Application: Insert new order 99 with status 'pending' during migration",
+      "sql": "INSERT INTO orders (id, customer_id, total_amount, status) VALUES (99, 1002, 89.50, 'pending') ON CONFLICT (id) DO NOTHING;"
+    },
+    "backfill_batch_partial": {
+      "id": "backfill_batch_partial",
+      "phase": "backfill",
+      "actor": "Backfill Worker",
+      "description": "DML: Backfill only orders where id < 50 (leaving order 99 unbackfilled)",
+      "sql": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL AND o.id < 50;"
+    },
+    "backfill_orders_all": {
+      "id": "backfill_orders_all",
+      "phase": "backfill",
+      "actor": "Backfill Worker",
+      "description": "DML: Complete backfill for all remaining rows",
+      "sql": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;"
+    },
+    "new_app_cutover_read_99": {
+      "id": "new_app_cutover_read_99",
+      "phase": "cutover",
+      "actor": "New App Reader",
+      "description": "New Application: Read status of order 99 via status_id FK join",
+      "sql": "SELECT o.id, os.name AS effective_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.id = 99;"
+    }
+  },
+  "invariants": [
+    {
+      "id": "backfill_completeness_invariant",
+      "name": "Backfill Completeness & Status Integrity Invariant",
+      "description": "Returns any orders where status_id is NULL or status_id does not match status text.",
+      "sql": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id WHERE o.status_id IS NULL OR o.status != os.name;"
+    }
+  ],
+  "known_failing_schedule": [
+    "expand_schema",
+    "legacy_insert_new_order_99",
+    "backfill_batch_partial",
+    "new_app_cutover_read_99"
+  ],
+  "permitted_repairs": [
+    {
+      "id": "repair_full_backfill_and_verification_gate",
+      "name": "Enforce Full Backfill & Reconciliation Before Cutover",
+      "description": "Run complete backfill and verify zero null status_id rows before cutover reads begin.",
+      "patch_type": "full_backfill_gate"
+    }
+  ]
+}

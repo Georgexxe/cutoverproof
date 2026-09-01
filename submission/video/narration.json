@@ -1,0 +1,86 @@
+[
+  {
+    "id": "01_problem",
+    "visual": "title",
+    "label": "MIGRATION TOOLS VERIFY STEPS. FAILURES LIVE IN SCHEDULES.",
+    "text": "A PostgreSQL migration can pass review and still damage data during rollout. The dangerous moment is the compatibility window: a backfill, an old worker, and a new cutover may each look correct alone, but fail in one ordering. CutoverProof searches those orderings and executes them against a disposable database."
+  },
+  {
+    "id": "02_workspace",
+    "visual": "frames/20-home-corrected.png",
+    "label": "A WORKSPACE FOR BACKEND ENGINEERS",
+    "text": "This is the engineer's workspace. A first-time user can take the short product tour, then start a safety assessment. The interface has one clear workflow: bring a migration pack, watch the test run, and inspect the decision."
+  },
+  {
+    "id": "03_import",
+    "visual": "frames/21-fresh-json-imported.png",
+    "label": "A FRESH JSON PACK, VISIBLE BEFORE EXECUTION",
+    "text": "For this demonstration I upload a fresh JSON file from Downloads. The pack declares the schema, seed data, named operations, read-only invariant, and one permitted repair. The built-in example remains available as a one-click starting point, but this run uses the uploaded customer file shown here."
+  },
+  {
+    "id": "04_running",
+    "visual": "progress",
+    "label": "THE REAL ASSESSMENT STAGES ARE VISIBLE",
+    "text": "The assessment now runs visibly through validation, planning, execution, verification, and evidence recording. Gemini proposes bounded schedules using declared operation names. The gateway rejects invalid plans. Each accepted candidate starts from a clean PostgreSQL reset, and provider or infrastructure failures stop the run instead of becoming safety claims."
+  },
+  {
+    "id": "05_decision",
+    "visual": "frames/24-imported-decision.png",
+    "label": "ONE EXECUTED COUNTEREXAMPLE BLOCKS CUTOVER",
+    "text": "The first candidate finds the failure. Expand and backfill complete, then a legacy payment write updates the old status text while the new status identifier remains stale. CutoverProof marks the exact conflict on the rollout phases, blocks cutover, and recommends the compatibility control required before continuing."
+  },
+  {
+    "id": "06_evidence",
+    "visual": "frames/25-readable-evidence.png",
+    "label": "THE VERDICT IS DATABASE EVIDENCE, NOT MODEL PROSE",
+    "text": "The evidence view shows the exact ordering executed in PostgreSQL and the row returned by the invariant. Order forty-two says paid in the legacy column, while status identifier one still resolves to pending. The model proposes the experiment; deterministic SQL decides what happened."
+  },
+  {
+    "id": "07_audit",
+    "visual": "frames/26-detailed-timeline.png",
+    "label": "A PORTABLE, READABLE EXECUTION RECORD",
+    "text": "The detailed timeline preserves the candidate hypothesis, runtime and model metadata, every executed operation, the failed check, and the returned row. Raw SQL is available behind each step without overwhelming the main view, so an engineer can reproduce the decision instead of trusting a screenshot."
+  },
+  {
+    "id": "08_approval",
+    "visual": "frames/27-human-approval.png",
+    "label": "REPAIR REQUIRES A NAMED HUMAN",
+    "text": "CutoverProof never applies a consequential change automatically. The uploaded pack contains one allow-listed compatibility repair. A named reviewer sees its purpose and boundaries, then explicitly approves a replay in the disposable sandbox. Production access remains blocked."
+  },
+  {
+    "id": "09_verified",
+    "visual": "frames/28-repair-verified.png",
+    "label": "THE IDENTICAL FAILING SCHEDULE NOW PASSES",
+    "text": "After approval, the clean database receives the compatibility trigger and the identical failing schedule runs again. This time the invariant returns zero violating rows. The interface reports repair verified in sandbox; it does not make the broader claim that every possible migration schedule is safe."
+  },
+  {
+    "id": "10_replay_audit",
+    "visual": "audit_replay",
+    "label": "THE AUDIT CONNECTS FAILURE, APPROVAL, AND REPLAY",
+    "text": "The same portable record now contains both sides of the safety case: the original counterexample and the human-approved replay. The operation sequence is identical, the repair is recorded, and the final invariant result is zero rows."
+  },
+  {
+    "id": "11_architecture",
+    "visual": "architecture",
+    "label": "REASONING PROPOSES. DETERMINISTIC CODE DECIDES.",
+    "text": "Here is the complete trust boundary. The React portal and named reviewer call the FastAPI workflow on Cloud Run. The pack validator and tool gateway constrain what Gemini may propose. PostgreSQL executes each schedule, the SQL verifier decides pass or block, and the evidence recorder links every result to the human approval and replay."
+  },
+  {
+    "id": "12_measurement",
+    "visual": "benchmark",
+    "label": "MEASURED AGAINST FAIR BASELINES",
+    "text": "Under the same model, facts, seed, and four-candidate budget, the specialised agent found all three unsafe benchmark scenarios with no false alarms and mean search effort one. The one-shot baseline found two of three, while the heuristic required three candidates. The measured advantage is earlier semantic schedule selection, not a claim of exhaustive safety."
+  },
+  {
+    "id": "13_changelog",
+    "visual": "changelog",
+    "label": "EVALUATION MADE THE EVIDENCE MORE HONEST",
+    "text": "Evaluation strengthened four trust boundaries. Provider and parser errors now fail closed. Schedule selection and repair reasoning are separated. Invalid experiments remain visible. And the customer import path produces the same PostgreSQL evidence and bounded approval record. Every benchmark number stays tied to executed evidence."
+  },
+  {
+    "id": "14_close",
+    "visual": "end",
+    "label": "CUTOVERPROOF",
+    "text": "CutoverProof gives backend engineers a concrete answer before production: not just whether migration steps look valid, but which real ordering breaks the rollout, what row proves it, and whether an approved repair survives the same test."
+  }
+]

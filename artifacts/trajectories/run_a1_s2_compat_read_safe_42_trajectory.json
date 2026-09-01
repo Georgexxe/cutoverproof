@@ -1,0 +1,336 @@
+[
+  {
+    "step_index": 1,
+    "timestamp": "2026-08-31T00:14:45.355073+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "inspect_scenario",
+    "tool_input": {},
+    "tool_output": {
+      "scenario_id": "s2_compat_read_safe",
+      "scenario_name": "Compatibility-Read Safe Rollout (Control S2)",
+      "description": "Safe rollout where application uses a compatibility read abstraction during rollout until completed reconciliation and verification.",
+      "remaining_budget": 4,
+      "max_schedule_length": 6,
+      "phases": [
+        {
+          "id": "seed",
+          "name": "Seed Phase",
+          "description": "Initial database state with orders"
+        },
+        {
+          "id": "expand",
+          "name": "Expand Schema",
+          "description": "Add lookup table, status_id column, and compatibility view"
+        },
+        {
+          "id": "compat",
+          "name": "Compatibility Phase",
+          "description": "Active sync trigger and compatibility read path"
+        },
+        {
+          "id": "backfill",
+          "name": "Backfill Data",
+          "description": "Backfill legacy rows to status_id"
+        },
+        {
+          "id": "cutover",
+          "name": "Cutover Phase",
+          "description": "New app queries via compatibility read layer"
+        }
+      ],
+      "operations": {
+        "expand_schema": {
+          "id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "description": "DDL: Create order_statuses, add status_id, and install compatibility view and sync triggers"
+        },
+        "backfill_orders": {
+          "id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "description": "DML: Backfill status_id from orders.status"
+        },
+        "legacy_order_update_shipped": {
+          "id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Update status='shipped'"
+        },
+        "new_app_read_compat": {
+          "id": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "description": "New Application: Read through compatibility view"
+        }
+      },
+      "invariants": [
+        {
+          "id": "compat_read_consistency_invariant",
+          "name": "Compatibility View Consistency Invariant",
+          "description": "Ensures that compatibility view resolved_status matches status when status_id is set."
+        }
+      ],
+      "permitted_repairs": []
+    },
+    "observation_summary": "Inspected scenario 's2_compat_read_safe'. Remaining budget: 4.",
+    "remaining_budget": 4
+  },
+  {
+    "step_index": 2,
+    "timestamp": "2026-08-31T00:14:53.699691+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "backfill_orders",
+        "legacy_order_update_shipped",
+        "new_app_read_compat"
+      ],
+      "hypothesis": "One-shot candidate schedule #1",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_88465acd",
+      "status": "no_counterexample_found_within_budget",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 3
+    },
+    "observation_summary": "Executed schedule 'sched_88465acd'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 3.",
+    "remaining_budget": 3
+  },
+  {
+    "step_index": 3,
+    "timestamp": "2026-08-31T00:14:54.753844+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "legacy_order_update_shipped",
+        "backfill_orders",
+        "new_app_read_compat"
+      ],
+      "hypothesis": "One-shot candidate schedule #2",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_138d0282",
+      "status": "no_counterexample_found_within_budget",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 2
+    },
+    "observation_summary": "Executed schedule 'sched_138d0282'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 2.",
+    "remaining_budget": 2
+  },
+  {
+    "step_index": 4,
+    "timestamp": "2026-08-31T00:14:56.064018+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "backfill_orders",
+        "new_app_read_compat",
+        "legacy_order_update_shipped"
+      ],
+      "hypothesis": "One-shot candidate schedule #3",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_6e04bcd0",
+      "status": "no_counterexample_found_within_budget",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 1
+    },
+    "observation_summary": "Executed schedule 'sched_6e04bcd0'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 1.",
+    "remaining_budget": 1
+  },
+  {
+    "step_index": 5,
+    "timestamp": "2026-08-31T00:14:57.653310+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "legacy_order_update_shipped",
+        "new_app_read_compat",
+        "backfill_orders"
+      ],
+      "hypothesis": "One-shot candidate schedule #4",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_4275eb4b",
+      "status": "no_counterexample_found_within_budget",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 0
+    },
+    "observation_summary": "Executed schedule 'sched_4275eb4b'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 0.",
+    "remaining_budget": 0
+  }
+]

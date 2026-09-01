@@ -1,0 +1,313 @@
+{
+  "run_id": "run_a3_u1_status_trigger_race_video_demo_42",
+  "scenario_id": "u1_status_trigger_race_video_demo",
+  "scenario_name": "Status Normalization Trigger/Backfill Race",
+  "approach_id": "A3_specialised_agent",
+  "seed": 42,
+  "max_budget": 4,
+  "candidates_attempted": 1,
+  "status": "verified_counterexample_found",
+  "verified_counterexample_found": true,
+  "first_counterexample_index": 1,
+  "winning_schedule": [
+    "expand_schema",
+    "backfill_orders",
+    "legacy_payment_event_paid"
+  ],
+  "traces": [
+    {
+      "schedule_id": "sched_bf2e4f35",
+      "hypothesis": "If the backfill runs before the compatibility trigger is activated, a legacy payment event updating orders.status text will leave orders.status_id pointing to the stale pre-backfill status, violating status_consistency_invariant.",
+      "operations_attempted": [
+        "expand_schema",
+        "backfill_orders",
+        "legacy_payment_event_paid"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id);",
+          "rows_affected": 0,
+          "duration_ms": 27.562899980694056,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 21.870099939405918,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "legacy_payment_event_paid",
+          "phase": "seed",
+          "actor": "Legacy Worker / Trigger",
+          "sql_executed": "INSERT INTO payment_events (order_id, event_type, amount) VALUES (42, 'payment_confirmed', 149.99);",
+          "rows_affected": 1,
+          "duration_ms": 22.10719999857247,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": false,
+          "violating_rows": [
+            {
+              "id": 42,
+              "legacy_status": "paid",
+              "status_id": 1,
+              "lookup_status": "pending"
+            }
+          ],
+          "row_count": 1,
+          "sql_query": "SELECT o.id, o.status AS legacy_status, o.status_id, os.name AS lookup_status FROM orders o JOIN order_statuses os ON o.status_id = os.id WHERE o.status != os.name;",
+          "error_message": null
+        }
+      ],
+      "has_violation": true,
+      "first_violating_boundary": "status_consistency_invariant",
+      "failing_evidence_rows": [
+        {
+          "id": 42,
+          "legacy_status": "paid",
+          "status_id": 1,
+          "lookup_status": "pending"
+        }
+      ],
+      "total_duration_ms": 173.2115000486374,
+      "status": "verified_counterexample_found"
+    }
+  ],
+  "repair_proposal": {
+    "proposal_id": "prop_e4bbb1",
+    "repair_id": "repair_compat_trigger_before_backfill",
+    "repair_name": "Activate compatibility trigger before backfill",
+    "explanation": "The legacy payment write occurred after backfill_orders had completed without an active synchronization trigger. Consequently, legacy_status was updated to 'paid' while status_id remained stale at 1 ('pending'), violating status_consistency_invariant. Activating the compatibility trigger prior to backfill ensures that legacy writes synchronously update status_id, maintaining consistency across schema changes.",
+    "requires_human_approval": true,
+    "approved_by_human": false,
+    "approved_by": null,
+    "approval_timestamp": null
+  },
+  "repair_replay_trace": null,
+  "trajectories": [
+    {
+      "step_index": 1,
+      "timestamp": "2026-09-01T07:59:23.579300+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "inspect_scenario",
+      "tool_input": {},
+      "tool_output": {
+        "scenario_id": "u1_status_trigger_race_video_demo",
+        "scenario_name": "Status Normalization Trigger/Backfill Race",
+        "description": "Migrating orders.status (VARCHAR) to order_statuses (lookup table + status_id FK). An unsafe legacy payment trigger updates only status text while backfill is running.",
+        "remaining_budget": 4,
+        "max_schedule_length": 6,
+        "phases": [
+          {
+            "id": "seed",
+            "name": "Seed Phase",
+            "description": "Initial database state with legacy table orders(id, customer_id, total_amount, status)"
+          },
+          {
+            "id": "expand",
+            "name": "Expand Schema",
+            "description": "Create lookup table order_statuses(id, name) and add orders.status_id (nullable FK)"
+          },
+          {
+            "id": "backfill",
+            "name": "Backfill Data",
+            "description": "Populate status_id from legacy status text for existing rows"
+          },
+          {
+            "id": "compat",
+            "name": "Compatibility Phase",
+            "description": "Install synchronization triggers to bridge old and new representations"
+          },
+          {
+            "id": "cutover",
+            "name": "Cutover Phase",
+            "description": "New application workers read from status_id; legacy writes taper off"
+          },
+          {
+            "id": "contract",
+            "name": "Contract Phase",
+            "description": "Final cleanup: drop legacy status column after validation"
+          }
+        ],
+        "operations": {
+          "expand_schema": {
+            "id": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "description": "DDL: Create order_statuses lookup table and add orders.status_id column"
+          },
+          "backfill_orders": {
+            "id": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "description": "DML: Backfill orders.status_id from orders.status based on order_statuses lookup"
+          },
+          "legacy_payment_event_paid": {
+            "id": "legacy_payment_event_paid",
+            "phase": "seed",
+            "actor": "Legacy Worker / Trigger",
+            "description": "Legacy Application: Insert payment_confirmed event which fires trigger updating orders.status='paid'"
+          },
+          "legacy_order_update_shipped": {
+            "id": "legacy_order_update_shipped",
+            "phase": "seed",
+            "actor": "Legacy Worker",
+            "description": "Legacy Application: Update orders.status='shipped' directly via legacy path"
+          },
+          "activate_late_compat_trigger": {
+            "id": "activate_late_compat_trigger",
+            "phase": "compat",
+            "actor": "Migration Coordinator",
+            "description": "Install late compatibility trigger on orders to sync status -> status_id"
+          },
+          "new_app_write_both": {
+            "id": "new_app_write_both",
+            "phase": "cutover",
+            "actor": "New App Worker",
+            "description": "New Application: Write dual status and status_id for an update"
+          },
+          "new_app_read_status": {
+            "id": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "description": "New Application: Read status from status_id via order_statuses join"
+          },
+          "contract_drop_legacy": {
+            "id": "contract_drop_legacy",
+            "phase": "contract",
+            "actor": "Migration Coordinator",
+            "description": "DDL: Drop legacy orders.status column and legacy trigger"
+          }
+        },
+        "invariants": [
+          {
+            "id": "status_consistency_invariant",
+            "name": "Status Consistency Invariant",
+            "description": "Whenever orders.status_id is populated (non-null), it must resolve to the same name as orders.status text."
+          }
+        ],
+        "permitted_repairs": [
+          {
+            "id": "repair_compat_trigger_before_backfill",
+            "name": "Activate compatibility trigger before backfill",
+            "description": "Update legacy payment writes to keep status and status_id synchronized, then activate compatibility before backfill.",
+            "patch_type": "trigger_and_phase_reorder"
+          }
+        ]
+      },
+      "observation_summary": "Inspected scenario 'u1_status_trigger_race_video_demo'. Remaining budget: 4.",
+      "remaining_budget": 4
+    },
+    {
+      "step_index": 2,
+      "timestamp": "2026-09-01T07:59:31.497891+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "backfill_orders",
+          "legacy_payment_event_paid"
+        ],
+        "hypothesis": "If the backfill runs before the compatibility trigger is activated, a legacy payment event updating orders.status text will leave orders.status_id pointing to the stale pre-backfill status, violating status_consistency_invariant.",
+        "reason": "Tests whether running legacy updates after backfill but before compatibility trigger activation causes status text and status_id to become out of sync."
+      },
+      "tool_output": {
+        "schedule_id": "sched_bf2e4f35",
+        "status": "verified_counterexample_found",
+        "has_violation": true,
+        "first_violating_boundary": "status_consistency_invariant",
+        "violating_evidence_rows": [
+          {
+            "id": 42,
+            "legacy_status": "paid",
+            "status_id": 1,
+            "lookup_status": "pending"
+          }
+        ],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "legacy_payment_event_paid",
+            "phase": "seed",
+            "actor": "Legacy Worker / Trigger",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "status_consistency_invariant",
+            "passed": false,
+            "violating_rows_count": 1
+          }
+        ],
+        "remaining_budget": 3
+      },
+      "observation_summary": "Executed schedule 'sched_bf2e4f35'. Violation found: True. Status: verified_counterexample_found. Remaining budget: 3.",
+      "remaining_budget": 3
+    },
+    {
+      "step_index": 3,
+      "timestamp": "2026-09-01T07:59:47.074259+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "repair_proposal",
+      "tool_name": "propose_repair",
+      "tool_input": {
+        "repair_id": "repair_compat_trigger_before_backfill",
+        "explanation": "The legacy payment write occurred after backfill_orders had completed without an active synchronization trigger. Consequently, legacy_status was updated to 'paid' while status_id remained stale at 1 ('pending'), violating status_consistency_invariant. Activating the compatibility trigger prior to backfill ensures that legacy writes synchronously update status_id, maintaining consistency across schema changes."
+      },
+      "tool_output": {
+        "status": "success",
+        "proposal_id": "prop_e4bbb1",
+        "repair_id": "repair_compat_trigger_before_backfill",
+        "repair_name": "Activate compatibility trigger before backfill",
+        "message": "Repair proposed successfully. Awaiting explicit human approval before replay.",
+        "requires_human_approval": true
+      },
+      "observation_summary": "Proposed repair 'Activate compatibility trigger before backfill'. Human approval required.",
+      "remaining_budget": 3
+    }
+  ],
+  "wall_clock_seconds": 23.495655999984592,
+  "model_calls": 2,
+  "model_tokens": 2650,
+  "approximate_cost_usd": 0.0,
+  "reasoning_backend": "live_model",
+  "model_provider": "google",
+  "model_name": "gemini-3.6-flash",
+  "prompt_version": "specialised-v2-live-only",
+  "error_message": null,
+  "evaluator_label": "unknown"
+}

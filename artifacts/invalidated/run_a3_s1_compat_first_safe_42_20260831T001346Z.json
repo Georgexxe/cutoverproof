@@ -1,0 +1,112 @@
+{
+  "run_id": "run_a3_s1_compat_first_safe_42",
+  "scenario_id": "s1_compat_first_safe",
+  "scenario_name": "Compatibility-First Safe Rollout (Control S1)",
+  "approach_id": "A3_specialised_agent",
+  "seed": 42,
+  "max_budget": 4,
+  "candidates_attempted": 0,
+  "status": "agent_error",
+  "verified_counterexample_found": false,
+  "first_counterexample_index": null,
+  "winning_schedule": null,
+  "traces": [],
+  "repair_proposal": null,
+  "repair_replay_trace": null,
+  "trajectories": [
+    {
+      "step_index": 1,
+      "timestamp": "2026-08-31T00:08:30.153388+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "inspect_scenario",
+      "tool_input": {},
+      "tool_output": {
+        "scenario_id": "s1_compat_first_safe",
+        "scenario_name": "Compatibility-First Safe Rollout (Control S1)",
+        "description": "Safe migration rollout where dual-write synchronization trigger is activated before backfill starts. Invariants remain satisfied under all operation orderings.",
+        "remaining_budget": 4,
+        "max_schedule_length": 6,
+        "phases": [
+          {
+            "id": "seed",
+            "name": "Seed Phase",
+            "description": "Initial database state with orders"
+          },
+          {
+            "id": "expand",
+            "name": "Expand Schema",
+            "description": "Add lookup table and status_id column"
+          },
+          {
+            "id": "compat",
+            "name": "Compatibility Phase",
+            "description": "Active sync trigger ensuring dual consistency"
+          },
+          {
+            "id": "backfill",
+            "name": "Backfill Data",
+            "description": "Backfill legacy rows to status_id"
+          },
+          {
+            "id": "cutover",
+            "name": "Cutover Phase",
+            "description": "New app reads status_id"
+          }
+        ],
+        "operations": {
+          "expand_schema": {
+            "id": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "description": "DDL: Create order_statuses lookup table, add status_id column, and install active compatibility sync trigger"
+          },
+          "backfill_orders": {
+            "id": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "description": "DML: Backfill status_id for any legacy rows not yet set"
+          },
+          "payment_event_paid": {
+            "id": "payment_event_paid",
+            "phase": "compat",
+            "actor": "Legacy Worker / Trigger",
+            "description": "Payment confirmed event updates status, and sync trigger ensures status_id is updated simultaneously"
+          },
+          "legacy_order_update_shipped": {
+            "id": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "description": "Legacy Application: Update orders.status='shipped', sync trigger updates status_id=3"
+          },
+          "new_app_read_status": {
+            "id": "new_app_read_status",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "description": "New Application: Read status from status_id via lookup join"
+          }
+        },
+        "invariants": [
+          {
+            "id": "status_consistency_invariant",
+            "name": "Status Consistency Invariant",
+            "description": "Whenever orders.status_id is populated, it must match orders.status text exactly."
+          }
+        ],
+        "permitted_repairs": []
+      },
+      "observation_summary": "Inspected scenario 's1_compat_first_safe'. Remaining budget: 4.",
+      "remaining_budget": 4
+    }
+  ],
+  "wall_clock_seconds": 2.4031532001681626,
+  "model_calls": 1,
+  "model_tokens": 773,
+  "approximate_cost_usd": 0.0,
+  "reasoning_backend": "live_model",
+  "model_provider": "google",
+  "model_name": "gemini-3.5-flash-lite",
+  "prompt_version": "specialised-v2-live-only",
+  "error_message": "Model returned unsupported action 'propose_repair' before verification.",
+  "evaluator_label": "safe"
+}

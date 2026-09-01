@@ -1,0 +1,404 @@
+[
+  {
+    "step_index": 1,
+    "timestamp": "2026-08-31T00:15:43.996841+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "inspect_scenario",
+    "tool_input": {},
+    "tool_output": {
+      "scenario_id": "u1_status_trigger_race",
+      "scenario_name": "Status Normalization Trigger/Backfill Race",
+      "description": "Migrating orders.status (VARCHAR) to order_statuses (lookup table + status_id FK). An unsafe legacy payment trigger updates only status text while backfill is running.",
+      "remaining_budget": 4,
+      "max_schedule_length": 6,
+      "phases": [
+        {
+          "id": "seed",
+          "name": "Seed Phase",
+          "description": "Initial database state with legacy table orders(id, customer_id, total_amount, status)"
+        },
+        {
+          "id": "expand",
+          "name": "Expand Schema",
+          "description": "Create lookup table order_statuses(id, name) and add orders.status_id (nullable FK)"
+        },
+        {
+          "id": "backfill",
+          "name": "Backfill Data",
+          "description": "Populate status_id from legacy status text for existing rows"
+        },
+        {
+          "id": "compat",
+          "name": "Compatibility Phase",
+          "description": "Install synchronization triggers to bridge old and new representations"
+        },
+        {
+          "id": "cutover",
+          "name": "Cutover Phase",
+          "description": "New application workers read from status_id; legacy writes taper off"
+        },
+        {
+          "id": "contract",
+          "name": "Contract Phase",
+          "description": "Final cleanup: drop legacy status column after validation"
+        }
+      ],
+      "operations": {
+        "expand_schema": {
+          "id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "description": "DDL: Create order_statuses lookup table and add orders.status_id column"
+        },
+        "backfill_orders": {
+          "id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "description": "DML: Backfill orders.status_id from orders.status based on order_statuses lookup"
+        },
+        "legacy_payment_event_paid": {
+          "id": "legacy_payment_event_paid",
+          "phase": "seed",
+          "actor": "Legacy Worker / Trigger",
+          "description": "Legacy Application: Insert payment_confirmed event which fires trigger updating orders.status='paid'"
+        },
+        "legacy_order_update_shipped": {
+          "id": "legacy_order_update_shipped",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "description": "Legacy Application: Update orders.status='shipped' directly via legacy path"
+        },
+        "activate_late_compat_trigger": {
+          "id": "activate_late_compat_trigger",
+          "phase": "compat",
+          "actor": "Migration Coordinator",
+          "description": "Install late compatibility trigger on orders to sync status -> status_id"
+        },
+        "new_app_write_both": {
+          "id": "new_app_write_both",
+          "phase": "cutover",
+          "actor": "New App Worker",
+          "description": "New Application: Write dual status and status_id for an update"
+        },
+        "new_app_read_status": {
+          "id": "new_app_read_status",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "description": "New Application: Read status from status_id via order_statuses join"
+        },
+        "contract_drop_legacy": {
+          "id": "contract_drop_legacy",
+          "phase": "contract",
+          "actor": "Migration Coordinator",
+          "description": "DDL: Drop legacy orders.status column and legacy trigger"
+        }
+      },
+      "invariants": [
+        {
+          "id": "status_consistency_invariant",
+          "name": "Status Consistency Invariant",
+          "description": "Whenever orders.status_id is populated (non-null), it must resolve to the same name as orders.status text."
+        }
+      ],
+      "permitted_repairs": [
+        {
+          "id": "repair_compat_trigger_before_backfill",
+          "name": "Activate Compatibility Trigger Before Backfill & Dual-Write Trigger",
+          "description": "Update legacy payment trigger to write both status and status_id, and activate bidirectional sync trigger before running the backfill.",
+          "patch_type": "trigger_and_phase_reorder"
+        }
+      ]
+    },
+    "observation_summary": "Inspected scenario 'u1_status_trigger_race'. Remaining budget: 4.",
+    "remaining_budget": 4
+  },
+  {
+    "step_index": 2,
+    "timestamp": "2026-08-31T00:15:53.936344+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "backfill_orders",
+        "legacy_payment_event_paid",
+        "activate_late_compat_trigger",
+        "contract_drop_legacy"
+      ],
+      "hypothesis": "One-shot candidate schedule #1",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_74c538e7",
+      "status": "verifier_error",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "legacy_payment_event_paid",
+          "phase": "seed",
+          "actor": "Legacy Worker / Trigger",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "activate_late_compat_trigger",
+          "phase": "compat",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "contract_drop_legacy",
+          "phase": "contract",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": false,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 3
+    },
+    "observation_summary": "Executed schedule 'sched_74c538e7'. Violation found: False. Status: verifier_error. Remaining budget: 3.",
+    "remaining_budget": 3
+  },
+  {
+    "step_index": 3,
+    "timestamp": "2026-08-31T00:15:55.342519+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "activate_late_compat_trigger",
+        "backfill_orders",
+        "legacy_order_update_shipped",
+        "contract_drop_legacy"
+      ],
+      "hypothesis": "One-shot candidate schedule #2",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_7b71f452",
+      "status": "verifier_error",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "activate_late_compat_trigger",
+          "phase": "compat",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "legacy_order_update_shipped",
+          "phase": "seed",
+          "actor": "Legacy Worker",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "contract_drop_legacy",
+          "phase": "contract",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": false,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 2
+    },
+    "observation_summary": "Executed schedule 'sched_7b71f452'. Violation found: False. Status: verifier_error. Remaining budget: 2.",
+    "remaining_budget": 2
+  },
+  {
+    "step_index": 4,
+    "timestamp": "2026-08-31T00:15:56.891918+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "legacy_payment_event_paid",
+        "backfill_orders",
+        "activate_late_compat_trigger",
+        "contract_drop_legacy"
+      ],
+      "hypothesis": "One-shot candidate schedule #3",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_9261004a",
+      "status": "verifier_error",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "legacy_payment_event_paid",
+          "phase": "seed",
+          "actor": "Legacy Worker / Trigger",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "activate_late_compat_trigger",
+          "phase": "compat",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "contract_drop_legacy",
+          "phase": "contract",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": false,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 1
+    },
+    "observation_summary": "Executed schedule 'sched_9261004a'. Violation found: False. Status: verifier_error. Remaining budget: 1.",
+    "remaining_budget": 1
+  },
+  {
+    "step_index": 5,
+    "timestamp": "2026-08-31T00:15:58.663477+00:00",
+    "agent_id": "A1_one_shot_llm",
+    "action_type": "tool_call",
+    "tool_name": "propose_or_run_schedule",
+    "tool_input": {
+      "operations": [
+        "expand_schema",
+        "backfill_orders",
+        "new_app_write_both",
+        "activate_late_compat_trigger",
+        "contract_drop_legacy"
+      ],
+      "hypothesis": "One-shot candidate schedule #4",
+      "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+    },
+    "tool_output": {
+      "schedule_id": "sched_e5443c7c",
+      "status": "verifier_error",
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "violating_evidence_rows": [],
+      "operations_executed": [
+        {
+          "step": 1,
+          "op": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 2,
+          "op": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "status": "success"
+        },
+        {
+          "step": 3,
+          "op": "new_app_write_both",
+          "phase": "cutover",
+          "actor": "New App Worker",
+          "status": "success"
+        },
+        {
+          "step": 4,
+          "op": "activate_late_compat_trigger",
+          "phase": "compat",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        },
+        {
+          "step": 5,
+          "op": "contract_drop_legacy",
+          "phase": "contract",
+          "actor": "Migration Coordinator",
+          "status": "success"
+        }
+      ],
+      "invariants_checked": [
+        {
+          "invariant_id": "status_consistency_invariant",
+          "passed": false,
+          "violating_rows_count": 0
+        }
+      ],
+      "remaining_budget": 0
+    },
+    "observation_summary": "Executed schedule 'sched_e5443c7c'. Violation found: False. Status: verifier_error. Remaining budget: 0.",
+    "remaining_budget": 0
+  }
+]

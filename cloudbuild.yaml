@@ -1,0 +1,41 @@
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: hackathon-apps
+  _SERVICE: cutoverproof
+
+steps:
+  - id: backend-tests
+    name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -c
+      - bash scripts/cloudbuild_backend_test.sh
+
+  - id: frontend-tests
+    name: node:22-bookworm-slim
+    entrypoint: bash
+    dir: web
+    args:
+      - -c
+      - corepack enable && pnpm install --frozen-lockfile && pnpm test && pnpm exec tsc -b && pnpm build
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+
+options:
+  dynamic_substitutions: true
+  logging: GCS_ONLY

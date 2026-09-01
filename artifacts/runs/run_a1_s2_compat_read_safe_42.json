@@ -1,0 +1,647 @@
+{
+  "run_id": "run_a1_s2_compat_read_safe_42",
+  "scenario_id": "s2_compat_read_safe",
+  "scenario_name": "Compatibility-Read Safe Rollout (Control S2)",
+  "approach_id": "A1_one_shot_llm",
+  "seed": 42,
+  "max_budget": 4,
+  "candidates_attempted": 4,
+  "status": "no_counterexample_found_within_budget",
+  "verified_counterexample_found": false,
+  "first_counterexample_index": null,
+  "winning_schedule": null,
+  "traces": [
+    {
+      "schedule_id": "sched_88465acd",
+      "hypothesis": "One-shot candidate schedule #1",
+      "operations_attempted": [
+        "expand_schema",
+        "backfill_orders",
+        "legacy_order_update_shipped",
+        "new_app_read_compat"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id); CREATE OR REPLACE VIEW v_orders_compat AS SELECT o.id, o.customer_id, o.total_amount, COALESCE(os.name, o.status) AS resolved_status, o.status_id FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id;",
+          "rows_affected": 0,
+          "duration_ms": 465.0645998772234,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 158.3648999221623,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped', status_id = 3 WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 179.3187998700887,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT id, resolved_status FROM v_orders_compat WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 131.00600009784102,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status, o.status_id, v.resolved_status FROM orders o JOIN v_orders_compat v ON o.id = v.id WHERE o.status_id IS NOT NULL AND o.status != v.resolved_status;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 2331.9347000215203,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_138d0282",
+      "hypothesis": "One-shot candidate schedule #2",
+      "operations_attempted": [
+        "expand_schema",
+        "legacy_order_update_shipped",
+        "backfill_orders",
+        "new_app_read_compat"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id); CREATE OR REPLACE VIEW v_orders_compat AS SELECT o.id, o.customer_id, o.total_amount, COALESCE(os.name, o.status) AS resolved_status, o.status_id FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id;",
+          "rows_affected": 0,
+          "duration_ms": 244.76839997805655,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped', status_id = 3 WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 98.22330018505454,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 0,
+          "duration_ms": 103.71129983104765,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT id, resolved_status FROM v_orders_compat WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 120.56130007840693,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status, o.status_id, v.resolved_status FROM orders o JOIN v_orders_compat v ON o.id = v.id WHERE o.status_id IS NOT NULL AND o.status != v.resolved_status;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 1053.1162999104708,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_6e04bcd0",
+      "hypothesis": "One-shot candidate schedule #3",
+      "operations_attempted": [
+        "expand_schema",
+        "backfill_orders",
+        "new_app_read_compat",
+        "legacy_order_update_shipped"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id); CREATE OR REPLACE VIEW v_orders_compat AS SELECT o.id, o.customer_id, o.total_amount, COALESCE(os.name, o.status) AS resolved_status, o.status_id FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id;",
+          "rows_affected": 0,
+          "duration_ms": 282.0749001111835,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 1,
+          "duration_ms": 371.86069996096194,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT id, resolved_status FROM v_orders_compat WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 142.277899896726,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped', status_id = 3 WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 163.2234000135213,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status, o.status_id, v.resolved_status FROM orders o JOIN v_orders_compat v ON o.id = v.id WHERE o.status_id IS NOT NULL AND o.status != v.resolved_status;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 1309.1220001224428,
+      "status": "no_counterexample_found_within_budget"
+    },
+    {
+      "schedule_id": "sched_4275eb4b",
+      "hypothesis": "One-shot candidate schedule #4",
+      "operations_attempted": [
+        "expand_schema",
+        "legacy_order_update_shipped",
+        "new_app_read_compat",
+        "backfill_orders"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "expand_schema",
+          "phase": "expand",
+          "actor": "Migration Coordinator",
+          "sql_executed": "CREATE TABLE IF NOT EXISTS order_statuses (id SERIAL PRIMARY KEY, name VARCHAR(32) UNIQUE NOT NULL); INSERT INTO order_statuses (id, name) VALUES (1, 'pending'), (2, 'paid'), (3, 'shipped'), (4, 'refunded') ON CONFLICT (id) DO NOTHING; ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_id INT REFERENCES order_statuses(id); CREATE OR REPLACE VIEW v_orders_compat AS SELECT o.id, o.customer_id, o.total_amount, COALESCE(os.name, o.status) AS resolved_status, o.status_id FROM orders o LEFT JOIN order_statuses os ON o.status_id = os.id;",
+          "rows_affected": 0,
+          "duration_ms": 163.13140001147985,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "legacy_order_update_shipped",
+          "phase": "compat",
+          "actor": "Legacy Worker",
+          "sql_executed": "UPDATE orders SET status = 'shipped', status_id = 3 WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 110.5279999319464,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "new_app_read_compat",
+          "phase": "cutover",
+          "actor": "New App Reader",
+          "sql_executed": "SELECT id, resolved_status FROM v_orders_compat WHERE id = 42;",
+          "rows_affected": 1,
+          "duration_ms": 412.8487999550998,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 4,
+          "operation_id": "backfill_orders",
+          "phase": "backfill",
+          "actor": "Backfill Worker",
+          "sql_executed": "UPDATE orders o SET status_id = s.id FROM order_statuses s WHERE o.status = s.name AND o.status_id IS NULL;",
+          "rows_affected": 0,
+          "duration_ms": 119.12819999270141,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "compat_read_consistency_invariant",
+          "passed": true,
+          "violating_rows": [],
+          "row_count": 0,
+          "sql_query": "SELECT o.id, o.status, o.status_id, v.resolved_status FROM orders o JOIN v_orders_compat v ON o.id = v.id WHERE o.status_id IS NOT NULL AND o.status != v.resolved_status;",
+          "error_message": null
+        }
+      ],
+      "has_violation": false,
+      "first_violating_boundary": null,
+      "failing_evidence_rows": [],
+      "total_duration_ms": 1590.4031000100076,
+      "status": "no_counterexample_found_within_budget"
+    }
+  ],
+  "repair_proposal": null,
+  "repair_replay_trace": null,
+  "trajectories": [
+    {
+      "step_index": 1,
+      "timestamp": "2026-08-31T00:14:45.355073+00:00",
+      "agent_id": "A1_one_shot_llm",
+      "action_type": "tool_call",
+      "tool_name": "inspect_scenario",
+      "tool_input": {},
+      "tool_output": {
+        "scenario_id": "s2_compat_read_safe",
+        "scenario_name": "Compatibility-Read Safe Rollout (Control S2)",
+        "description": "Safe rollout where application uses a compatibility read abstraction during rollout until completed reconciliation and verification.",
+        "remaining_budget": 4,
+        "max_schedule_length": 6,
+        "phases": [
+          {
+            "id": "seed",
+            "name": "Seed Phase",
+            "description": "Initial database state with orders"
+          },
+          {
+            "id": "expand",
+            "name": "Expand Schema",
+            "description": "Add lookup table, status_id column, and compatibility view"
+          },
+          {
+            "id": "compat",
+            "name": "Compatibility Phase",
+            "description": "Active sync trigger and compatibility read path"
+          },
+          {
+            "id": "backfill",
+            "name": "Backfill Data",
+            "description": "Backfill legacy rows to status_id"
+          },
+          {
+            "id": "cutover",
+            "name": "Cutover Phase",
+            "description": "New app queries via compatibility read layer"
+          }
+        ],
+        "operations": {
+          "expand_schema": {
+            "id": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "description": "DDL: Create order_statuses, add status_id, and install compatibility view and sync triggers"
+          },
+          "backfill_orders": {
+            "id": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "description": "DML: Backfill status_id from orders.status"
+          },
+          "legacy_order_update_shipped": {
+            "id": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "description": "Legacy Application: Update status='shipped'"
+          },
+          "new_app_read_compat": {
+            "id": "new_app_read_compat",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "description": "New Application: Read through compatibility view"
+          }
+        },
+        "invariants": [
+          {
+            "id": "compat_read_consistency_invariant",
+            "name": "Compatibility View Consistency Invariant",
+            "description": "Ensures that compatibility view resolved_status matches status when status_id is set."
+          }
+        ],
+        "permitted_repairs": []
+      },
+      "observation_summary": "Inspected scenario 's2_compat_read_safe'. Remaining budget: 4.",
+      "remaining_budget": 4
+    },
+    {
+      "step_index": 2,
+      "timestamp": "2026-08-31T00:14:53.699691+00:00",
+      "agent_id": "A1_one_shot_llm",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "backfill_orders",
+          "legacy_order_update_shipped",
+          "new_app_read_compat"
+        ],
+        "hypothesis": "One-shot candidate schedule #1",
+        "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+      },
+      "tool_output": {
+        "schedule_id": "sched_88465acd",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "new_app_read_compat",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "compat_read_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 3
+      },
+      "observation_summary": "Executed schedule 'sched_88465acd'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 3.",
+      "remaining_budget": 3
+    },
+    {
+      "step_index": 3,
+      "timestamp": "2026-08-31T00:14:54.753844+00:00",
+      "agent_id": "A1_one_shot_llm",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "legacy_order_update_shipped",
+          "backfill_orders",
+          "new_app_read_compat"
+        ],
+        "hypothesis": "One-shot candidate schedule #2",
+        "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+      },
+      "tool_output": {
+        "schedule_id": "sched_138d0282",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "new_app_read_compat",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "compat_read_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 2
+      },
+      "observation_summary": "Executed schedule 'sched_138d0282'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 2.",
+      "remaining_budget": 2
+    },
+    {
+      "step_index": 4,
+      "timestamp": "2026-08-31T00:14:56.064018+00:00",
+      "agent_id": "A1_one_shot_llm",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "backfill_orders",
+          "new_app_read_compat",
+          "legacy_order_update_shipped"
+        ],
+        "hypothesis": "One-shot candidate schedule #3",
+        "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+      },
+      "tool_output": {
+        "schedule_id": "sched_6e04bcd0",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "new_app_read_compat",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "compat_read_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 1
+      },
+      "observation_summary": "Executed schedule 'sched_6e04bcd0'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 1.",
+      "remaining_budget": 1
+    },
+    {
+      "step_index": 5,
+      "timestamp": "2026-08-31T00:14:57.653310+00:00",
+      "agent_id": "A1_one_shot_llm",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "expand_schema",
+          "legacy_order_update_shipped",
+          "new_app_read_compat",
+          "backfill_orders"
+        ],
+        "hypothesis": "One-shot candidate schedule #4",
+        "reason": "Proposing pre-computed one-shot candidate without execution feedback"
+      },
+      "tool_output": {
+        "schedule_id": "sched_4275eb4b",
+        "status": "no_counterexample_found_within_budget",
+        "has_violation": false,
+        "first_violating_boundary": null,
+        "violating_evidence_rows": [],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "expand_schema",
+            "phase": "expand",
+            "actor": "Migration Coordinator",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "legacy_order_update_shipped",
+            "phase": "compat",
+            "actor": "Legacy Worker",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "new_app_read_compat",
+            "phase": "cutover",
+            "actor": "New App Reader",
+            "status": "success"
+          },
+          {
+            "step": 4,
+            "op": "backfill_orders",
+            "phase": "backfill",
+            "actor": "Backfill Worker",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "compat_read_consistency_invariant",
+            "passed": true,
+            "violating_rows_count": 0
+          }
+        ],
+        "remaining_budget": 0
+      },
+      "observation_summary": "Executed schedule 'sched_4275eb4b'. Violation found: False. Status: no_counterexample_found_within_budget. Remaining budget: 0.",
+      "remaining_budget": 0
+    }
+  ],
+  "wall_clock_seconds": 12.300271400017664,
+  "model_calls": 1,
+  "model_tokens": 557,
+  "approximate_cost_usd": 0.0,
+  "reasoning_backend": "live_model",
+  "model_provider": "google",
+  "model_name": "gemini-3.1-flash-lite",
+  "prompt_version": "one-shot-v2-live-only",
+  "error_message": null,
+  "evaluator_label": "safe"
+}

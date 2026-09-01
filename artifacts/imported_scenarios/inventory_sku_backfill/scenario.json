@@ -1,0 +1,65 @@
+{
+  "id": "inventory_sku_backfill",
+  "name": "Inventory SKU backfill",
+  "description": "Tests whether a legacy inventory write can leave the new normalized SKU reference stale during backfill.",
+  "phases": [
+    {
+      "id": "expand",
+      "name": "Expand",
+      "description": "Add the normalized representation."
+    },
+    {
+      "id": "backfill",
+      "name": "Backfill",
+      "description": "Populate normalized references."
+    },
+    {
+      "id": "compat",
+      "name": "Compatibility",
+      "description": "Exercise a legacy writer during migration."
+    },
+    {
+      "id": "cutover",
+      "name": "Cutover",
+      "description": "Read from the new representation."
+    }
+  ],
+  "operations": {
+    "backfill_sku": {
+      "id": "backfill_sku",
+      "phase": "backfill",
+      "actor": "Backfill worker",
+      "description": "Populate sku_id from the legacy SKU text.",
+      "sql": "UPDATE products p SET sku_id = s.id FROM sku_catalog s WHERE p.sku = s.code;"
+    },
+    "legacy_sku_write": {
+      "id": "legacy_sku_write",
+      "phase": "compat",
+      "actor": "Legacy writer",
+      "description": "Change only the legacy SKU text.",
+      "sql": "UPDATE products SET sku = 'SKU-NEW' WHERE id = 7;"
+    },
+    "new_app_read": {
+      "id": "new_app_read",
+      "phase": "cutover",
+      "actor": "New reader",
+      "description": "Read the normalized SKU reference.",
+      "sql": "SELECT p.id, s.code FROM products p LEFT JOIN sku_catalog s ON s.id = p.sku_id WHERE p.id = 7;"
+    }
+  },
+  "invariants": [
+    {
+      "id": "sku_consistency",
+      "name": "SKU consistency",
+      "description": "Legacy and normalized SKU values must agree whenever sku_id is populated.",
+      "sql": "SELECT p.id, p.sku AS legacy_sku, s.code AS normalized_sku FROM products p JOIN sku_catalog s ON s.id = p.sku_id WHERE p.sku <> s.code;"
+    }
+  ],
+  "max_candidates": 4,
+  "max_schedule_length": 4,
+  "evaluator_label": "unknown",
+  "schema_file": "schema.sql",
+  "seed_file": "seed.sql",
+  "known_failing_schedule": [],
+  "permitted_repairs": []
+}

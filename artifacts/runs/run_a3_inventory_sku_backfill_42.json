@@ -1,0 +1,233 @@
+{
+  "run_id": "run_a3_inventory_sku_backfill_42",
+  "scenario_id": "inventory_sku_backfill",
+  "scenario_name": "Inventory SKU backfill",
+  "approach_id": "A3_specialised_agent",
+  "seed": 42,
+  "max_budget": 4,
+  "candidates_attempted": 1,
+  "status": "verified_counterexample_found",
+  "verified_counterexample_found": true,
+  "first_counterexample_index": 1,
+  "winning_schedule": [
+    "backfill_sku",
+    "legacy_sku_write",
+    "new_app_read"
+  ],
+  "traces": [
+    {
+      "schedule_id": "sched_a22746e7",
+      "hypothesis": "If legacy_sku_write executes after backfill_sku populates sku_id, the legacy SKU text changes without updating sku_id, causing sku_consistency violation when read by new_app_read.",
+      "operations_attempted": [
+        "backfill_sku",
+        "legacy_sku_write",
+        "new_app_read"
+      ],
+      "step_outcomes": [
+        {
+          "step_index": 1,
+          "operation_id": "backfill_sku",
+          "phase": "backfill",
+          "actor": "Backfill worker",
+          "sql_executed": "UPDATE products p SET sku_id = s.id FROM sku_catalog s WHERE p.sku = s.code;",
+          "rows_affected": 1,
+          "duration_ms": 93.07830012403429,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 2,
+          "operation_id": "legacy_sku_write",
+          "phase": "compat",
+          "actor": "Legacy writer",
+          "sql_executed": "UPDATE products SET sku = 'SKU-NEW' WHERE id = 7;",
+          "rows_affected": 1,
+          "duration_ms": 101.24709992669523,
+          "status": "success",
+          "error_message": null
+        },
+        {
+          "step_index": 3,
+          "operation_id": "new_app_read",
+          "phase": "cutover",
+          "actor": "New reader",
+          "sql_executed": "SELECT p.id, s.code FROM products p LEFT JOIN sku_catalog s ON s.id = p.sku_id WHERE p.id = 7;",
+          "rows_affected": 1,
+          "duration_ms": 75.0449001789093,
+          "status": "success",
+          "error_message": null
+        }
+      ],
+      "invariant_results": [
+        {
+          "invariant_id": "sku_consistency",
+          "passed": false,
+          "violating_rows": [
+            {
+              "id": 7,
+              "legacy_sku": "SKU-NEW",
+              "normalized_sku": "SKU-OLD"
+            }
+          ],
+          "row_count": 1,
+          "sql_query": "SELECT p.id, p.sku AS legacy_sku, s.code AS normalized_sku FROM products p JOIN sku_catalog s ON s.id = p.sku_id WHERE p.sku <> s.code;",
+          "error_message": null
+        }
+      ],
+      "has_violation": true,
+      "first_violating_boundary": "sku_consistency",
+      "failing_evidence_rows": [
+        {
+          "id": 7,
+          "legacy_sku": "SKU-NEW",
+          "normalized_sku": "SKU-OLD"
+        }
+      ],
+      "total_duration_ms": 571.918600006029,
+      "status": "verified_counterexample_found"
+    }
+  ],
+  "repair_proposal": null,
+  "repair_replay_trace": null,
+  "trajectories": [
+    {
+      "step_index": 1,
+      "timestamp": "2026-08-31T21:31:59.268024+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "inspect_scenario",
+      "tool_input": {},
+      "tool_output": {
+        "scenario_id": "inventory_sku_backfill",
+        "scenario_name": "Inventory SKU backfill",
+        "description": "Tests whether a legacy inventory write can leave the new normalized SKU reference stale during backfill.",
+        "remaining_budget": 4,
+        "max_schedule_length": 4,
+        "phases": [
+          {
+            "id": "expand",
+            "name": "Expand",
+            "description": "Add the normalized representation."
+          },
+          {
+            "id": "backfill",
+            "name": "Backfill",
+            "description": "Populate normalized references."
+          },
+          {
+            "id": "compat",
+            "name": "Compatibility",
+            "description": "Exercise a legacy writer during migration."
+          },
+          {
+            "id": "cutover",
+            "name": "Cutover",
+            "description": "Read from the new representation."
+          }
+        ],
+        "operations": {
+          "backfill_sku": {
+            "id": "backfill_sku",
+            "phase": "backfill",
+            "actor": "Backfill worker",
+            "description": "Populate sku_id from the legacy SKU text."
+          },
+          "legacy_sku_write": {
+            "id": "legacy_sku_write",
+            "phase": "compat",
+            "actor": "Legacy writer",
+            "description": "Change only the legacy SKU text."
+          },
+          "new_app_read": {
+            "id": "new_app_read",
+            "phase": "cutover",
+            "actor": "New reader",
+            "description": "Read the normalized SKU reference."
+          }
+        },
+        "invariants": [
+          {
+            "id": "sku_consistency",
+            "name": "SKU consistency",
+            "description": "Legacy and normalized SKU values must agree whenever sku_id is populated."
+          }
+        ],
+        "permitted_repairs": []
+      },
+      "observation_summary": "Inspected scenario 'inventory_sku_backfill'. Remaining budget: 4.",
+      "remaining_budget": 4
+    },
+    {
+      "step_index": 2,
+      "timestamp": "2026-08-31T21:32:08.816256+00:00",
+      "agent_id": "A3_specialised_agent",
+      "action_type": "tool_call",
+      "tool_name": "propose_or_run_schedule",
+      "tool_input": {
+        "operations": [
+          "backfill_sku",
+          "legacy_sku_write",
+          "new_app_read"
+        ],
+        "hypothesis": "If legacy_sku_write executes after backfill_sku populates sku_id, the legacy SKU text changes without updating sku_id, causing sku_consistency violation when read by new_app_read.",
+        "reason": "Tests if legacy writes post-backfill leave sku_id out of sync before legacy writes are deprecated or dual-written."
+      },
+      "tool_output": {
+        "schedule_id": "sched_a22746e7",
+        "status": "verified_counterexample_found",
+        "has_violation": true,
+        "first_violating_boundary": "sku_consistency",
+        "violating_evidence_rows": [
+          {
+            "id": 7,
+            "legacy_sku": "SKU-NEW",
+            "normalized_sku": "SKU-OLD"
+          }
+        ],
+        "operations_executed": [
+          {
+            "step": 1,
+            "op": "backfill_sku",
+            "phase": "backfill",
+            "actor": "Backfill worker",
+            "status": "success"
+          },
+          {
+            "step": 2,
+            "op": "legacy_sku_write",
+            "phase": "compat",
+            "actor": "Legacy writer",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "op": "new_app_read",
+            "phase": "cutover",
+            "actor": "New reader",
+            "status": "success"
+          }
+        ],
+        "invariants_checked": [
+          {
+            "invariant_id": "sku_consistency",
+            "passed": false,
+            "violating_rows_count": 1
+          }
+        ],
+        "remaining_budget": 3
+      },
+      "observation_summary": "Executed schedule 'sched_a22746e7'. Violation found: True. Status: verified_counterexample_found. Remaining budget: 3.",
+      "remaining_budget": 3
+    }
+  ],
+  "wall_clock_seconds": 9.548525699879974,
+  "model_calls": 1,
+  "model_tokens": 1175,
+  "approximate_cost_usd": 0.0,
+  "reasoning_backend": "live_model",
+  "model_provider": "google",
+  "model_name": "gemini-3.6-flash",
+  "prompt_version": "specialised-v2-live-only",
+  "error_message": null,
+  "evaluator_label": "unknown"
+}

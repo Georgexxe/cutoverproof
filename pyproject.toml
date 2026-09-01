@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cutoverproof"
+version = "0.1.0"
+description = "Adversarial testing agent for PostgreSQL online expand-and-contract migrations"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "psycopg[binary]==3.3.4",
+    "pydantic==2.13.5",
+    "rich==15.0.0",
+    "fastapi==0.135.1",
+    "uvicorn[standard]==0.42.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "httpx==0.28.1",
+]
+models = [
+    "openai==3.6.0",
+    "google-genai==2.20.0",
+]
+
+[project.scripts]
+cutoverproof = "src.coordinator.cli:main"
+cutoverproof-web = "src.api.app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = ["--basetemp=.test-tmp", "-o", "cache_dir=.test-cache"]

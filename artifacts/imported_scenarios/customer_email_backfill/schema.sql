@@ -1,0 +1,1 @@
+CREATE TABLE customer_accounts (id INT PRIMARY KEY, email TEXT NOT NULL, normalized_email TEXT);
