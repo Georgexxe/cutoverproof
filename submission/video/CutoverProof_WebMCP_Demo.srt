@@ -1,163 +1,163 @@
 1
-00:00:00,300 --> 00:00:02,724
+00:00:00,300 --> 00:00:02,951
 AI agents can propose production changes
 
 2
-00:00:02,724 --> 00:00:05,552
+00:00:02,951 --> 00:00:06,043
 faster than teams can safely review them.
 
 3
-00:00:05,552 --> 00:00:08,380
+00:00:06,043 --> 00:00:09,136
 For an online database migration, the dangerous
 
 4
-00:00:08,380 --> 00:00:11,613
+00:00:09,136 --> 00:00:12,670
 question is not whether each step is valid.
 
 5
-00:00:11,613 --> 00:00:15,249
+00:00:12,670 --> 00:00:16,646
 It is whether one compatibility-window ordering corrupts the result.
 
 6
-00:00:15,249 --> 00:00:18,481
+00:00:16,646 --> 00:00:20,180
 CutoverProof puts that change on trial before production.
 
 7
-00:00:19,281 --> 00:00:22,167
+00:00:20,980 --> 00:00:23,508
 CutoverProof is a shared change contract.
 
 8
-00:00:22,167 --> 00:00:25,535
+00:00:23,508 --> 00:00:26,457
 The agent prepares the case, PostgreSQL produces
 
 9
-00:00:25,535 --> 00:00:28,902
+00:00:26,457 --> 00:00:29,407
 independent evidence, and the engineer keeps authority.
 
 10
-00:00:28,902 --> 00:00:33,713
+00:00:29,407 --> 00:00:33,620
 In this signed-in workspace, five WebMCP browser tools are ready.
 
 11
-00:00:34,513 --> 00:00:38,395
+00:00:34,420 --> 00:00:38,267
 The agent can list and inspect migration contracts, prepare a
 
 12
-00:00:38,395 --> 00:00:42,665
+00:00:38,267 --> 00:00:42,498
 visible review, read verified evidence, and open a pending repair review.
 
 13
-00:00:42,665 --> 00:00:46,547
+00:00:42,498 --> 00:00:46,345
 Every tool has a closed schema and explicit safety hints.
 
 14
-00:00:46,547 --> 00:00:49,653
+00:00:46,345 --> 00:00:49,423
 There is no tool to run arbitrary SQL,
 
 15
-00:00:49,653 --> 00:00:52,759
+00:00:49,423 --> 00:00:52,500
 decide the verdict, deploy, or approve a repair.
 
 16
-00:00:53,559 --> 00:00:57,085
+00:00:53,300 --> 00:00:56,720
 I ask the browser agent to inspect the status-normalization
 
 17
-00:00:57,085 --> 00:01:01,003
+00:00:56,720 --> 00:01:00,520
 contract and focus on stale writes during the compatibility window.
 
 18
-00:01:01,003 --> 00:01:04,530
+00:01:00,520 --> 00:01:03,940
 Its only write action creates this idempotent review draft.
 
 19
-00:01:04,530 --> 00:01:07,273
+00:01:03,940 --> 00:01:06,600
 The card appears in my workspace and
 
 20
-00:01:07,273 --> 00:01:10,015
+00:01:06,600 --> 00:01:09,260
 states the boundary clearly: nothing has executed.
 
 21
-00:01:10,815 --> 00:01:14,235
+00:01:10,060 --> 00:01:13,420
 The agent hands the decision back to me.
 
 22
-00:01:14,235 --> 00:01:16,800
+00:01:13,420 --> 00:01:15,940
 I inspect the migration objective, candidate
 
 23
-00:01:16,800 --> 00:01:19,793
+00:01:15,940 --> 00:01:18,880
 budget, operations, invariant count, and isolated environment.
 
 24
-00:01:19,793 --> 00:01:23,641
+00:01:18,880 --> 00:01:22,660
 Only this visible human control can start the assessment.
 
 25
-00:01:23,641 --> 00:01:27,061
+00:01:22,660 --> 00:01:26,020
 The internal planner may choose experiments, but it
 
 26
-00:01:27,061 --> 00:01:30,481
+00:01:26,020 --> 00:01:29,380
 still cannot cross the execution boundary by itself.
 
 27
-00:01:31,281 --> 00:01:36,224
+00:01:30,180 --> 00:01:34,897
 A dangerous ordering is executed against a freshly reset PostgreSQL sandbox.
 
 28
-00:01:36,224 --> 00:01:39,819
+00:01:34,897 --> 00:01:38,327
 Here, an old payment write changes the legacy
 
 29
-00:01:39,819 --> 00:01:43,864
+00:01:38,327 --> 00:01:42,186
 status after backfill, leaving the new status reference stale.
 
 30
-00:01:43,864 --> 00:01:46,560
+00:01:42,186 --> 00:01:44,759
 A read-only invariant returns the exact
 
 31
-00:01:46,560 --> 00:01:49,257
+00:01:44,759 --> 00:01:47,332
 violating row, so CutoverProof blocks cutover.
 
 32
-00:01:49,257 --> 00:01:53,751
+00:01:47,332 --> 00:01:51,620
 The model proposed the experiment; deterministic code decided what happened.
 
 33
-00:01:54,551 --> 00:01:57,154
+00:01:52,420 --> 00:01:55,175
 WebMCP can read the verified evidence
 
 34
-00:01:57,154 --> 00:01:59,758
+00:01:55,175 --> 00:01:57,930
 and navigate to this repair decision.
 
 35
-00:01:59,758 --> 00:02:01,493
+00:01:57,930 --> 00:01:59,766
 It cannot approve it.
 
 36
-00:02:01,493 --> 00:02:04,531
+00:01:59,766 --> 00:02:02,980
 A named engineer authorizes one allow-listed sandbox
 
 37
-00:02:04,531 --> 00:02:08,002
+00:02:02,980 --> 00:02:06,653
 repair, and CutoverProof replays the identical failing schedule.
 
 38
-00:02:08,002 --> 00:02:11,039
+00:02:06,653 --> 00:02:09,867
 The final record connects the counterexample, human
 
 39
-00:02:11,039 --> 00:02:14,511
+00:02:09,867 --> 00:02:13,540
 approval, and passing replay without claiming exhaustive safety.
 
 40
-00:02:15,311 --> 00:02:22,519
+00:02:14,340 --> 00:02:21,740
 CutoverProof starts with PostgreSQL migrations, but the ambition is broader: every agent-led production change should have
 
 41
-00:02:22,519 --> 00:02:29,727
+00:02:21,740 --> 00:02:29,140
 a declared contract, bounded experiments, independent proof, and a human authority line the agent cannot cross.

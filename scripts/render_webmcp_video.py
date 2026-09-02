@@ -27,7 +27,6 @@ from render_submission_video import (
     duration,
     face,
     logo,
-    screenshot_slide,
     srt_time,
 )
 
@@ -115,7 +114,9 @@ def make_frame(beat: dict[str, str], destination: Path) -> None:
     elif visual == "end":
         image = end_slide()
     else:
-        image = screenshot_slide(VIDEO / visual, beat["label"])
+        # Product captures stay visually authentic. Narration and the separate
+        # subtitle file carry the explanation; no renderer label obscures UI.
+        image = Image.open(VIDEO / visual).convert("RGB").resize((W, H), Image.Resampling.LANCZOS)
     image.convert("RGB").save(destination, "PNG", optimize=True)
 
 
