@@ -15,6 +15,7 @@ submission/video/contact-sheet.jpg
 submission/video/webmcp-build/
 submission/video/webmcp-voice/
 output/playwright/
+output/audit-*/
 *.log
 *.zip
 submission/private/
