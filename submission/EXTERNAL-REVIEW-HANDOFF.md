@@ -6,7 +6,7 @@ CutoverProof tests PostgreSQL expand-and-contract migrations during the compatib
 
 Please review the product as a WebMCP competition entry, not only as a database tool. The key question is whether WebMCP creates a meaningful human-agent collaboration rather than exposing ordinary API wrappers.
 
-**Current handoff status:** the candidate is locally testable, but the public GitHub and Cloud Run deployment are stale as of 2026-09-02. Do not score the public link until the owner confirms the reviewed commit has been pushed and deployed.
+**Current handoff status:** source release `60021ad` is public and Cloud Run revision `cutoverproof-00008-4sk` is serving 100% traffic. Public rendering, WebMCP route discovery, authenticated contract listing, and a no-execution review draft passed smoke testing on 2026-09-02. The reviewer should now exercise the complete flows below.
 
 ## Locations
 

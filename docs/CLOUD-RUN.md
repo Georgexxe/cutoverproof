@@ -8,15 +8,16 @@ CutoverProof serves the React portal, FastAPI API, and an ephemeral PostgreSQL 1
 - Region: `us-central1`
 - Project: `project-ca8af2fe-5aff-496a-bd8`
 - Public URL: `https://cutoverproof-1021060138341.us-central1.run.app`
-- Cloud Build: `fa3aee25-644d-44f8-ada0-adca5a3e6b34` (`SUCCESS`)
-- Image: `us-central1-docker.pkg.dev/project-ca8af2fe-5aff-496a-bd8/hackathon-apps/cutoverproof:fa3aee25-644d-44f8-ada0-adca5a3e6b34`
-- Image digest: `sha256:151a50328c402532cf54e924003b916ef953d698f6f9d929ea41bfb0a07984a6`
-- Revision: `cutoverproof-00007-mrc` (100% traffic)
+- Source release: `60021ad`
+- Cloud Build: `6ca78953-8d49-4d05-9a9b-f7a5bb9a1405` (`SUCCESS`)
+- Image: `us-central1-docker.pkg.dev/project-ca8af2fe-5aff-496a-bd8/hackathon-apps/cutoverproof:6ca78953-8d49-4d05-9a9b-f7a5bb9a1405`
+- Image digest: `sha256:39ef85f1031d4571654903585ddb230f58f258ce43eaa7500b64a7087b7b601e`
+- Revision: `cutoverproof-00008-4sk` (100% traffic)
 - Runtime identity: `cutoverproof-runner@project-ca8af2fe-5aff-496a-bd8.iam.gserviceaccount.com`
-- Runtime: two vCPU, 2 GiB, concurrency 1, zero to two instances, 900-second request timeout
+- Runtime: two vCPU, 2 GiB, concurrency 1, one warm instance, maximum one instance, 900-second request timeout
 - Model: `gemini-3.1-flash-lite` through Vertex AI
 
-The runtime identity has the narrow `roles/aiplatform.user` permission and secret-level access to the reviewer password in Secret Manager. On 2026-09-01 the public service passed health, authenticated sign-in, live Vertex planning, PostgreSQL counterexample execution, named approval, and identical-schedule repair replay. See [`LIVE-DEPLOYMENT-VERIFICATION.md`](LIVE-DEPLOYMENT-VERIFICATION.md).
+The runtime identity has the narrow `roles/aiplatform.user` permission and secret-level access to the reviewer password in Secret Manager. On 2026-09-01 the public service passed health, authenticated sign-in, live Vertex planning, PostgreSQL counterexample execution, named approval, and identical-schedule repair replay. On 2026-09-02 the WebMCP release passed public rendering, route discovery, authenticated contract listing, and a no-execution review-draft smoke test. See [`LIVE-DEPLOYMENT-VERIFICATION.md`](LIVE-DEPLOYMENT-VERIFICATION.md).
 
 ## Why PostgreSQL is inside this container
 

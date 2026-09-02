@@ -1,17 +1,31 @@
 # Live deployment verification
 
-The public deployment was exercised end to end on 2026-09-01. This is a live-service verification record, not a replacement for the checked-in benchmark.
+The base public workflow was exercised end to end on 2026-09-01. The WebMCP release was deployed and smoke-tested on 2026-09-02. This is a live-service verification record, not a replacement for the checked-in benchmark.
 
 ## Release identity
 
 - Public product: `https://cutoverproof-1021060138341.us-central1.run.app`
 - GitHub source: `https://github.com/Georgexxe/cutoverproof`
-- Cloud Build: `fa3aee25-644d-44f8-ada0-adca5a3e6b34` (`SUCCESS`)
-- Cloud Run revision: `cutoverproof-00007-mrc` (100% traffic)
-- Container digest: `sha256:151a50328c402532cf54e924003b916ef953d698f6f9d929ea41bfb0a07984a6`
+- Source release: `60021ad`
+- Cloud Build: `6ca78953-8d49-4d05-9a9b-f7a5bb9a1405` (`SUCCESS`)
+- Cloud Run revision: `cutoverproof-00008-4sk` (100% traffic)
+- Container digest: `sha256:39ef85f1031d4571654903585ddb230f58f258ce43eaa7500b64a7087b7b601e`
+- Rollback revision: `cutoverproof-00007-mrc`
 - Runtime service account: `cutoverproof-runner@project-ca8af2fe-5aff-496a-bd8.iam.gserviceaccount.com`
 
-## Public workflow exercised
+## WebMCP release smoke test — 2026-09-02
+
+1. `GET /api/health` returned `status: ok` and `model_configured: true`.
+2. The public login page rendered in the in-app browser with no console errors.
+3. The public OpenAPI exposed `/api/webmcp/contracts`, `/api/webmcp/contracts/{scenario_id}`, and `/api/webmcp/review-drafts`.
+4. The response headers included `Permissions-Policy: tools=(self)` and the expected restrictive content-security policy.
+5. Secret-backed reviewer sign-in succeeded.
+6. Authenticated contract discovery returned 11 bounded migration contracts.
+7. Creating the idempotent deployment-smoke review for `u1_status_trigger_race` returned `awaiting_human_review` and `execution_started: false`.
+
+This smoke test intentionally did not start a model call or PostgreSQL assessment. The full agent, verifier, and repair-replay workflow below was last exercised on the prior healthy revision and must be repeated on the final release before submission.
+
+## Full public workflow exercised — 2026-09-01
 
 1. `GET /api/health` returned `status: ok` with a configured live model and customer portal.
 2. Reviewer sign-in succeeded using the secret-backed Cloud Run credential.
