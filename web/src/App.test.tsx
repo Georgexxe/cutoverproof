@@ -16,7 +16,27 @@ describe("CutoverProof customer workspace", () => {
       else if (url.endsWith("/api/scenarios")) body = scenarios;
       else if (url.endsWith("/api/runs")) body = init?.method === "POST" ? { job_id: "job-1", status: "queued" } : [];
       else if (url.endsWith("/api/connections")) body = { configured: { id: "configured", label: "Configured demo sandbox", host: "localhost", port: 5432, database: "cutoverproof_sandbox", username: "cutover", status: "configured" }, ephemeral: [] };
-      else if (url.endsWith("/api/webmcp/review-drafts")) body = [];
+      else if (url.endsWith("/api/webmcp/contracts/u1_status_trigger_race")) body = {
+        id: "u1_status_trigger_race",
+        name: "Status Normalization Trigger/Backfill Race",
+        objective: "Verify the compatibility window.",
+        phase_order: [{ id: "expand", name: "Expand" }, { id: "backfill", name: "Backfill" }, { id: "cutover", name: "Cutover" }],
+        declared_operations: Array.from({ length: 8 }, (_, index) => ({ id: `operation_${index}` })),
+        invariants: [{ id: "status_consistency" }],
+      };
+      else if (url.endsWith("/api/webmcp/contracts")) body = scenarios;
+      else if (url.endsWith("/api/webmcp/review-drafts")) body = init?.method === "POST" ? {
+        id: "draft-in-app",
+        scenario_id: "u1_status_trigger_race",
+        contract_name: "Status Normalization Trigger/Backfill Race",
+        objective: "Inspect the status-normalization contract and prepare a review focused on stale writes during the compatibility window.",
+        risk_focus: ["stale_writes", "compatibility_window"],
+        status: "awaiting_human_review",
+        requested_by: "browser_agent",
+        created_at: "2026-09-02T12:00:00Z",
+        human_action: "Review and start the sandbox assessment.",
+        execution_started: false,
+      } : [];
       return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     }));
   });
@@ -87,5 +107,25 @@ describe("CutoverProof customer workspace", () => {
     expect(screen.getByText("Nothing has executed. A human must start the sandbox assessment.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Review & run" }));
     expect(screen.getByRole("dialog", { name: "Run assessment" })).toBeInTheDocument();
+  });
+
+  it("lets the engineer prepare an agent review directly inside the platform", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Ask CutoverProof directly." });
+
+    await user.click(screen.getByRole("button", { name: /Prepare with agent/i }));
+
+    expect(await screen.findByText("Discovered contracts")).toBeInTheDocument();
+    expect(await screen.findByText("Inspected contract")).toBeInTheDocument();
+    expect(await screen.findByText("Prepared human review")).toBeInTheDocument();
+    expect(screen.getByText("Agent-prepared review")).toBeInTheDocument();
+    expect(screen.getAllByText("Nothing has executed. A human must start the sandbox assessment.").length).toBeGreaterThan(0);
+
+    const calls = vi.mocked(fetch).mock.calls;
+    expect(calls.some(([input]) => String(input).endsWith("/api/webmcp/contracts"))).toBe(true);
+    expect(calls.some(([input]) => String(input).endsWith("/api/webmcp/contracts/u1_status_trigger_race"))).toBe(true);
+    expect(calls.some(([input, init]) => String(input).endsWith("/api/webmcp/review-drafts") && init?.method === "POST")).toBe(true);
+    expect(calls.some(([input, init]) => String(input).endsWith("/api/runs") && init?.method === "POST")).toBe(false);
   });
 });

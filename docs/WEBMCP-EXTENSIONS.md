@@ -9,7 +9,7 @@ CutoverProof existed before this WebMCP submission. The work below is the meanin
 | Area | Before this extension | WebMCP extension |
 |---|---|---|
 | Browser-agent surface | No registered tools; the browser exposed an empty tool set | Five imperative top-level tools registered with `document.modelContext.registerTool` |
-| Agent interaction | Internal Gemini planner selected bounded schedules during an assessment | A visiting browser agent can inspect contracts, prepare a review draft, read verified evidence, and open a human repair review |
+| Agent interaction | Internal Gemini planner selected bounded schedules during an assessment | A visiting browser agent can inspect contracts, prepare a review draft, read verified evidence, and open a human repair review; an in-app Agent workspace makes the same bounded preparation path directly testable |
 | Human handoff | Humans started runs and approved repairs through the portal | Agent-prepared reviews now appear as visible workspace objects that explicitly await human action |
 | Product framing | PostgreSQL migration testing | Production change control built around an agent–verifier–human authority contract |
 | Browser security | HttpOnly SameSite cookie | CSRF token on every authenticated mutation, login throttling, secure deployment cookies, CSP, anti-framing, origin isolation, and an explicit `tools=(self)` Permissions Policy |
@@ -64,7 +64,7 @@ This separation is the product feature. WebMCP does not create an invisible auto
 - Browser discovery: all five tools appeared with their schemas, annotations, page URL, and origin.
 - API handoff: authenticated draft creation succeeded; retrying the same idempotency key returned the same draft; `execution_started` remained `false`.
 - Python suite: 42 passed.
-- React/WebMCP suite: 7 passed.
+- React/WebMCP suite: 8 passed.
 - TypeScript: no errors.
 - Vite production build: succeeded.
 - Hosting worker: 4 passed.

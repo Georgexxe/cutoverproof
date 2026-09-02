@@ -8,7 +8,7 @@ CutoverProof helps backend and data-platform engineers test the compatibility wi
 
 ## WebMCP change control
 
-The signed-in product now exposes five typed browser tools so a compatible agent can list and inspect migration contracts, create a visible human-review draft, read verified evidence, and open a pending repair review. The agent cannot start an assessment, execute arbitrary SQL, approve a repair, or deploy. The shared authority model is visible in the product: **agent prepares, PostgreSQL verifies, human authorizes**.
+The signed-in product now exposes five typed browser tools so a compatible agent can list and inspect migration contracts, create a visible human-review draft, read verified evidence, and open a pending repair review. Engineers can exercise the same bounded preparation workflow directly from the in-app **Agent workspace**, with live tool activity and a visible handoff. The agent cannot start an assessment, execute arbitrary SQL, approve a repair, or deploy. The shared authority model is visible in the product: **agent prepares, PostgreSQL verifies, human authorizes**.
 
 The implementation, safety properties, exact pre-existing-versus-new disclosure, and browser reproduction path are documented in [`docs/WEBMCP-EXTENSIONS.md`](docs/WEBMCP-EXTENSIONS.md).
 

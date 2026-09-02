@@ -236,6 +236,7 @@ export function App() {
 function ProductOverview({
   onTour,
   onNewAssessment,
+  onDraftPrepared,
   onReviewDraft,
   onSelectRun,
   latestDraft,
@@ -244,17 +245,102 @@ function ProductOverview({
 }: {
   onTour: () => void;
   onNewAssessment: () => void;
+  onDraftPrepared: (draft: ChangeReviewDraft) => void;
   onReviewDraft: (scenarioId: string) => void;
   onSelectRun: (runId: string) => void;
   latestDraft: ChangeReviewDraft | null;
   runs: RunSummary[];
   webMcp: WebMcpAvailability;
 }) {
+  type ContractSummary = ScenarioSummary;
+  type ContractDetail = {
+    id: string;
+    name: string;
+    objective: string;
+    phase_order: Array<{ id: string; name: string }>;
+    declared_operations: Array<{ id: string }>;
+    invariants: Array<{ id: string }>;
+  };
+  type AgentActivity = { label: string; detail: string };
+
+  const [agentPrompt, setAgentPrompt] = useState("Inspect the status-normalization contract and prepare a review focused on stale writes during the compatibility window.");
+  const [agentBusy, setAgentBusy] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentReply, setAgentReply] = useState<string | null>(null);
+  const [agentActivity, setAgentActivity] = useState<AgentActivity[]>([]);
   const toolStatus = webMcp.ready
     ? `${webMcp.toolCount} browser tools ready`
     : webMcp.supported
       ? "Connecting browser tools"
       : "Human controls active";
+
+  const submitAgentRequest = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const prompt = agentPrompt.trim();
+    if (prompt.length < 12) {
+      setAgentError("Describe the contract or risk you want the agent to review.");
+      return;
+    }
+    setAgentBusy(true);
+    setAgentError(null);
+    setAgentReply(null);
+    setAgentActivity([]);
+    try {
+      const contracts = await apiRequest<ContractSummary[]>("/api/webmcp/contracts");
+      setAgentActivity([{ label: "Discovered contracts", detail: `${contracts.length} bounded contracts available` }]);
+      const normalized = prompt.toLowerCase();
+      const selected = contracts.find((contract) => normalized.includes(contract.id.toLowerCase()))
+        ?? contracts.find((contract) => normalized.includes(contract.name.toLowerCase()))
+        ?? contracts.find((contract) => contract.id === "u1_status_trigger_race")
+        ?? contracts[0];
+      if (!selected) throw new Error("No migration contracts are available.");
+
+      const listOnly = /\b(list|show)\b/.test(normalized) && !/\b(inspect|review|prepare|draft|focus|analyse|analyze)\b/.test(normalized);
+      if (listOnly) {
+        setAgentReply(`I found ${contracts.length} bounded migration contracts. Start with ${selected.name}; it is the primary compatibility-window race.`);
+        return;
+      }
+
+      const contract = await apiRequest<ContractDetail>(`/api/webmcp/contracts/${encodeURIComponent(selected.id)}`);
+      setAgentActivity((current) => [...current, {
+        label: "Inspected contract",
+        detail: `${contract.phase_order.length} phases · ${contract.declared_operations.length} operations · ${contract.invariants.length} invariant${contract.invariants.length === 1 ? "" : "s"}`,
+      }]);
+
+      const inspectOnly = /\b(inspect|analyse|analyze|explain)\b/.test(normalized) && !/\b(review|prepare|draft|focus|create)\b/.test(normalized);
+      if (inspectOnly) {
+        setAgentReply(`I inspected ${contract.name}. The agent may prepare the case, but only you can start its PostgreSQL assessment.`);
+        return;
+      }
+
+      const riskMap: Array<[RegExp, string]> = [
+        [/\b(stale|old write|legacy write)\b/, "stale_writes"],
+        [/\b(compatibility|compat|legacy)\b/, "compatibility_window"],
+        [/\b(order|ordering|sequence|cutover)\b/, "cutover_ordering"],
+        [/\b(rollback|recovery)\b/, "rollback_readiness"],
+        [/\b(invariant|consistency|data)\b/, "data_invariants"],
+      ];
+      const riskFocus = riskMap.filter(([pattern]) => pattern.test(normalized)).map(([, risk]) => risk);
+      if (!riskFocus.length) riskFocus.push("compatibility_window", "cutover_ordering");
+      const draft = await apiRequest<ChangeReviewDraft>("/api/webmcp/review-drafts", {
+        method: "POST",
+        body: JSON.stringify({
+          scenario_id: contract.id,
+          objective: prompt,
+          risk_focus: Array.from(new Set(riskFocus)),
+          idempotency_key: `in-app-agent:${crypto.randomUUID()}`,
+        }),
+      });
+      setAgentActivity((current) => [...current, { label: "Prepared human review", detail: "Draft created · execution not started" }]);
+      setAgentReply(`I prepared ${contract.name} for your review. Nothing has executed; use Review & run when you are ready to authorize the sandbox assessment.`);
+      onDraftPrepared(draft);
+    } catch (reason) {
+      setAgentError(reason instanceof Error ? reason.message : "The agent request could not be completed.");
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
   return (
     <main className="main-content overview-view workspace-home">
       <section className="workspace-heading change-control-heading">
@@ -264,6 +350,31 @@ function ProductOverview({
           <p>Agents prepare the case. PostgreSQL produces the evidence. You keep authority.</p>
         </div>
         <span className={`webmcp-status ${webMcp.ready ? "ready" : ""}`}><span />{toolStatus}</span>
+      </section>
+
+      <section className="agent-workspace" aria-labelledby="agent-workspace-title">
+        <div className="agent-workspace-compose">
+          <div className="agent-workspace-heading">
+            <span className="agent-workspace-icon"><CodeBracketSquareIcon /></span>
+            <div><p className="eyebrow">Agent workspace</p><h2 id="agent-workspace-title">Ask CutoverProof directly.</h2></div>
+          </div>
+          <p>Describe what to inspect. The agent can read bounded contracts and prepare a review, but it cannot start execution.</p>
+          <form onSubmit={submitAgentRequest}>
+            <label htmlFor="agent-request">Request</label>
+            <textarea id="agent-request" aria-label="Ask CutoverProof agent" value={agentPrompt} onChange={(event) => setAgentPrompt(event.target.value)} maxLength={600} />
+            <div className="agent-prompt-actions">
+              <button type="button" className="prompt-example" onClick={() => setAgentPrompt("List the available migration contracts.")}>List contracts</button>
+              <button type="button" className="prompt-example" onClick={() => setAgentPrompt("Inspect the status-normalization contract and explain its authority boundary.")}>Inspect contract</button>
+              <button className="primary-button" disabled={agentBusy}>{agentBusy ? "Preparing…" : "Prepare with agent"}<ArrowRightIcon /></button>
+            </div>
+          </form>
+          {agentError ? <p className="inline-error" role="alert">{agentError}</p> : null}
+        </div>
+        <aside className={`agent-activity ${agentActivity.length ? "has-activity" : ""}`} aria-live="polite">
+          <div className="agent-activity-head"><span>Live tool activity</span><small>{agentBusy ? "Working" : agentActivity.length ? "Complete" : "Ready"}</small></div>
+          {agentActivity.length ? <ol>{agentActivity.map((item) => <li key={item.label}><CheckCircleIcon /><span><strong>{item.label}</strong><small>{item.detail}</small></span></li>)}</ol> : <div className="agent-activity-empty"><LockClosedIcon /><strong>Bounded by design</strong><p>No SQL execution, verdict, repair approval, or deployment authority.</p></div>}
+          {agentReply ? <div className="agent-reply"><strong>CutoverProof agent</strong><p>{agentReply}</p></div> : null}
+        </aside>
       </section>
 
       <section className="first-assessment" data-tour="how-it-works">
@@ -307,7 +418,7 @@ function ProductOverview({
           <div className="assessment-list-copy"><small>{item.status_label}</small><h2>{item.title}</h2><p>{item.scenario_name}</p></div>
           <dl><div><dt>Candidates</dt><dd>{item.candidates_attempted}/{item.max_budget}</dd></div><div><dt>Runtime</dt><dd>{item.wall_clock_seconds}s</dd></div></dl>
           <button className="secondary-button" onClick={() => onSelectRun(item.run_id)}>Open</button>
-        </article>)}</div> : <p className="empty-history">No decisions yet. Run the guided demo or let your browser agent prepare a review.</p>}
+        </article>)}</div> : <p className="empty-history">No decisions yet. Ask the CutoverProof agent to prepare a review or run the guided demo.</p>}
       </section>
     </main>
   );
@@ -607,6 +718,10 @@ export function AppV2() {
     }
   }, [active]);
 
+  const handleDraftPrepared = useCallback((draft: ChangeReviewDraft) => {
+    setReviewDrafts((current) => [draft, ...current.filter((item) => item.id !== draft.id)]);
+  }, []);
+
   useEffect(() => {
     if (active) void refreshReviewDrafts();
     else setReviewDrafts([]);
@@ -616,12 +731,12 @@ export function AppV2() {
     const handleReviewCreated = (event: Event) => {
       const draft = (event as CustomEvent<ChangeReviewDraft>).detail;
       if (!draft) return;
-      setReviewDrafts((current) => [draft, ...current.filter((item) => item.id !== draft.id)]);
+      handleDraftPrepared(draft);
       setView("overview");
     };
     window.addEventListener(WEBMCP_REVIEW_CREATED, handleReviewCreated);
     return () => window.removeEventListener(WEBMCP_REVIEW_CREATED, handleReviewCreated);
-  }, []);
+  }, [handleDraftPrepared]);
 
   const savePreferences = useCallback((next: AppPreferences) => {
     setPreferences(next);
@@ -737,13 +852,13 @@ export function AppV2() {
 
   const content = useMemo(() => {
     if (data.initializing) return <main className="main-content"><div className="loading-panel">Opening workspace…</div></main>;
-    if (view === "overview") return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} onReviewDraft={openGuided} onSelectRun={selectRun} latestDraft={latestDraft} runs={userRuns} webMcp={webMcp} />;
+    if (view === "overview") return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} onDraftPrepared={handleDraftPrepared} onReviewDraft={openGuided} onSelectRun={selectRun} latestDraft={latestDraft} runs={userRuns} webMcp={webMcp} />;
     if (view === "assessments") return <AssessmentHistoryView runs={userRuns} onNew={() => setShowCustom(true)} onSelect={selectRun} />;
     if (view === "settings") return <SettingsView email={session?.email ?? ""} health={data.health} connection={data.connections?.configured ?? null} preferences={preferences} onSave={savePreferences} onLogout={() => void logout()} />;
     if (view === "connections") return <ConnectionsView data={data.connections} onRefresh={data.refreshConnections} onSelect={setSelectedConnection} />;
     if (run) return <AssessmentView run={run} onApprove={() => setShowApproval(true)} onEvidence={() => setShowEvidence(true)} onRetry={() => openGuided(run.scenario_id)} />;
-    return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} onReviewDraft={openGuided} onSelectRun={selectRun} latestDraft={latestDraft} runs={userRuns} webMcp={webMcp} />;
-  }, [data, view, run, selectRun, userRuns, session?.email, preferences, savePreferences, latestDraft, webMcp]);
+    return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} onDraftPrepared={handleDraftPrepared} onReviewDraft={openGuided} onSelectRun={selectRun} latestDraft={latestDraft} runs={userRuns} webMcp={webMcp} />;
+  }, [data, view, run, selectRun, userRuns, session?.email, preferences, savePreferences, latestDraft, webMcp, handleDraftPrepared]);
 
   if (sessionLoading) return <div className="login-loading"><ShieldCheckIcon />CutoverProof</div>;
   if (!session?.authenticated) return <LoginView onSignedIn={setSession} />;
