@@ -17,7 +17,7 @@ CutoverProof serves the React portal, FastAPI API, and an ephemeral PostgreSQL 1
 - Runtime: two vCPU, 2 GiB, concurrency 1, one warm instance, maximum one instance, 900-second request timeout
 - Model: `gemini-3.1-flash-lite` through Vertex AI
 
-The runtime identity has the narrow `roles/aiplatform.user` permission and secret-level access to the reviewer password in Secret Manager. On 2026-09-01 the public service passed health, authenticated sign-in, live Vertex planning, PostgreSQL counterexample execution, named approval, and identical-schedule repair replay. On 2026-09-02 the WebMCP release passed public rendering, route discovery, authenticated contract listing, and a no-execution review-draft smoke test. See [`LIVE-DEPLOYMENT-VERIFICATION.md`](LIVE-DEPLOYMENT-VERIFICATION.md).
+The runtime identity has the narrow `roles/aiplatform.user` permission and secret-level access to the reviewer password in Secret Manager. On 2026-09-02 the WebMCP release passed public rendering, route discovery, authenticated contract listing, a no-execution review-draft smoke test, live Vertex planning, PostgreSQL counterexample execution, named approval, and identical-schedule repair replay. See [`LIVE-DEPLOYMENT-VERIFICATION.md`](LIVE-DEPLOYMENT-VERIFICATION.md).
 
 ## Why PostgreSQL is inside this container
 

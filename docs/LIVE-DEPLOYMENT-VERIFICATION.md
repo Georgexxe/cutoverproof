@@ -13,7 +13,7 @@ The base public workflow was exercised end to end on 2026-09-01. The WebMCP rele
 - Rollback revision: `cutoverproof-00007-mrc`
 - Runtime service account: `cutoverproof-runner@project-ca8af2fe-5aff-496a-bd8.iam.gserviceaccount.com`
 
-## WebMCP release smoke test — 2026-09-02
+## WebMCP release verification — 2026-09-02
 
 1. `GET /api/health` returned `status: ok` and `model_configured: true`.
 2. The public login page rendered in the in-app browser with no console errors.
@@ -22,8 +22,27 @@ The base public workflow was exercised end to end on 2026-09-01. The WebMCP rele
 5. Secret-backed reviewer sign-in succeeded.
 6. Authenticated contract discovery returned 11 bounded migration contracts.
 7. Creating the idempotent deployment-smoke review for `u1_status_trigger_race` returned `awaiting_human_review` and `execution_started: false`.
+8. A fresh four-candidate assessment of `u1_status_trigger_race` completed through the deployed API and live Vertex model.
+9. `gemini-3.1-flash-lite` proposed a candidate; PostgreSQL executed it and the independent invariant returned one violating row.
+10. The release returned `DO NOT CUT OVER` after candidate 1 and offered the allow-listed repair.
+11. The named reviewer `Deployment Verification` approved the bounded sandbox replay.
+12. The identical failing schedule returned `REPAIR VERIFIED IN SANDBOX` with `repair_replay_passed`.
 
-This smoke test intentionally did not start a model call or PostgreSQL assessment. The full agent, verifier, and repair-replay workflow below was last exercised on the prior healthy revision and must be repeated on the final release before submission.
+The API and execution boundary are verified on the final release. Interactive discovery of all five page-registered WebMCP tools in the judge browser remains part of the manual reviewer protocol.
+
+### Final-release result summary
+
+```json
+{
+  "run_id": "run_a3_u1_status_trigger_race_42",
+  "initial_verdict": "DO NOT CUT OVER",
+  "candidates_attempted": 1,
+  "evidence_rows": 1,
+  "approved_run_id": "run_a3_u1_status_trigger_race_42_approved_repair",
+  "final_verdict": "REPAIR VERIFIED IN SANDBOX",
+  "replay_status": "repair_replay_passed"
+}
+```
 
 ## Full public workflow exercised — 2026-09-01
 

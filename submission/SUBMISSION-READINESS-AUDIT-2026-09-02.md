@@ -10,7 +10,7 @@ This is an intentionally adversarial review. It separates the product that exist
 
 CutoverProof has a genuinely distinctive product thesis: an agent prepares a database-change case, PostgreSQL independently proves or disproves it, and a named human retains authority over execution and repair. The deterministic counterexample and identical-schedule repair replay are materially stronger than a generic chat wrapper.
 
-It is not currently the best version this project can be, and it is not yet safe to submit. The WebMCP source is now public and Cloud Run revision `cutoverproof-00008-4sk` is serving the release at 100% traffic. The existing WebMCP video still does not demonstrate the current click-by-click product flow, and the complete browser-agent → human → PostgreSQL → repair journey has not yet been repeated on the final deployment.
+It is not currently the best version this project can be, and it is not yet safe to submit. The WebMCP source is now public and Cloud Run revision `cutoverproof-00008-4sk` is serving the release at 100% traffic. The deployed API, live Vertex planner, PostgreSQL counterexample, named repair approval, and identical-schedule replay have passed. The existing WebMCP video still does not demonstrate the current click-by-click product flow, and all five page-registered tools still need manual discovery in the authenticated judge browser.
 
 If the release, demo, and reviewer-proof gaps are closed, this becomes a credible top-ten contender. It is not an obvious winner yet because the impact case is asserted rather than externally evidenced, and the new in-app “Agent workspace” behaves as a bounded deterministic request router rather than a model-driven assistant. That implementation must be described precisely or improved before judges test free-form prompts.
 
@@ -59,7 +59,7 @@ Do not submit until every P0 gate is green.
 - [x] Push the WebMCP source and dated extension history to public `main`.
 - [x] Deploy source release `60021ad` to the existing Cloud Run service.
 - [x] Confirm the public OpenAPI contains `/api/webmcp/contracts` and `/api/webmcp/review-drafts`.
-- [ ] Sign in using the exact credentials that will be placed in Devpost and complete both the in-app and browser-agent paths.
+- [ ] Sign in using the exact credentials that will be placed in Devpost and complete both the in-app and browser-agent UI paths. The authenticated API and full assessment/replay path already pass.
 - [ ] Verify all five WebMCP tools register in a supported judge environment.
 - [ ] Record a new sub-three-minute demo from the final public build with real prompts, visible tool activity, user clicks, evidence, and human approval.
 - [ ] Upload the video to public/unlisted YouTube and replace `[PUBLIC_UNLISTED_VIDEO_URL]`.
