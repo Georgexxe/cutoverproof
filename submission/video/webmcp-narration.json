@@ -1,0 +1,50 @@
+[
+  {
+    "id": "01_trust_gap",
+    "visual": "title",
+    "label": "THE TRUST LAYER FOR AGENT-LED DATABASE CHANGES",
+    "text": "AI agents can propose production changes faster than teams can safely review them. For an online database migration, the dangerous question is not whether each step is valid. It is whether one compatibility-window ordering corrupts the result. CutoverProof puts that change on trial before production."
+  },
+  {
+    "id": "02_authorities",
+    "visual": "frames/40-webmcp-home.png",
+    "label": "AGENT PREPARES · POSTGRESQL PROVES · HUMAN AUTHORIZES",
+    "text": "CutoverProof is a shared change contract. The agent prepares the case, PostgreSQL produces independent evidence, and the engineer keeps authority. In this signed-in workspace, five WebMCP browser tools are ready."
+  },
+  {
+    "id": "03_tools",
+    "visual": "tools",
+    "label": "FIVE NARROW TOOLS · NO INVISIBLE PRODUCTION POWER",
+    "text": "The agent can list and inspect migration contracts, prepare a visible review, read verified evidence, and open a pending repair review. Every tool has a closed schema and explicit safety hints. There is no tool to run arbitrary SQL, decide the verdict, deploy, or approve a repair."
+  },
+  {
+    "id": "04_handoff",
+    "visual": "frames/41-agent-review-handoff.png",
+    "label": "THE ONLY WRITE CREATES A REVIEW — NOT AN EXECUTION",
+    "text": "I ask the browser agent to inspect the status-normalization contract and focus on stale writes during the compatibility window. Its only write action creates this idempotent review draft. The card appears in my workspace and states the boundary clearly: nothing has executed."
+  },
+  {
+    "id": "05_human_gate",
+    "visual": "frames/42-human-run-review.png",
+    "label": "A HUMAN MUST START THE BOUNDED SANDBOX ASSESSMENT",
+    "text": "The agent hands the decision back to me. I inspect the migration objective, candidate budget, operations, invariant count, and isolated environment. Only this visible human control can start the assessment. The internal planner may choose experiments, but it still cannot cross the execution boundary by itself."
+  },
+  {
+    "id": "06_evidence",
+    "visual": "frames/25-readable-evidence.png",
+    "label": "THE VERDICT COMES FROM POSTGRESQL EVIDENCE",
+    "text": "A dangerous ordering is executed against a freshly reset PostgreSQL sandbox. Here, an old payment write changes the legacy status after backfill, leaving the new status reference stale. A read-only invariant returns the exact violating row, so CutoverProof blocks cutover. The model proposed the experiment; deterministic code decided what happened."
+  },
+  {
+    "id": "07_approval",
+    "visual": "frames/27-human-approval.png",
+    "label": "THE AGENT MAY OPEN THIS REVIEW — ONLY A HUMAN MAY APPROVE",
+    "text": "WebMCP can read the verified evidence and navigate to this repair decision. It cannot approve it. A named engineer authorizes one allow-listed sandbox repair, and CutoverProof replays the identical failing schedule. The final record connects the counterexample, human approval, and passing replay without claiming exhaustive safety."
+  },
+  {
+    "id": "08_close",
+    "visual": "end",
+    "label": "CUTOVERPROOF",
+    "text": "CutoverProof starts with PostgreSQL migrations, but the ambition is broader: every agent-led production change should have a declared contract, bounded experiments, independent proof, and a human authority line the agent cannot cross."
+  }
+]

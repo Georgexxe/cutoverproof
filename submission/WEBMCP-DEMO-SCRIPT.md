@@ -1,4 +1,4 @@
-# WebMCP demo — 2:35 target
+# WebMCP demo — final runtime 2:30
 
 ## 0:00–0:18 — The risk
 
@@ -40,9 +40,8 @@ Ask the agent to read the verified evidence and open the repair review.
 
 Show **REPAIR VERIFIED IN SANDBOX**.
 
-## 2:19–2:35 — Close
+## 2:19–2:30 — Close
 
 “This starts with PostgreSQL migrations, but the product idea is broader: every agent-led production change should have a declared contract, bounded experiments, independent proof, and a human authority line it cannot cross.”
 
 End on the home authority strip and repository/live-product links.
-

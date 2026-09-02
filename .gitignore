@@ -12,6 +12,9 @@ submission/video/voice/
 submission/video/build/
 submission/video/frames/
 submission/video/contact-sheet.jpg
+submission/video/webmcp-build/
+submission/video/webmcp-voice/
+output/playwright/
 *.log
 *.zip
 submission/private/

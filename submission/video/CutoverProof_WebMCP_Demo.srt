@@ -1,0 +1,163 @@
+1
+00:00:00,300 --> 00:00:02,724
+AI agents can propose production changes
+
+2
+00:00:02,724 --> 00:00:05,552
+faster than teams can safely review them.
+
+3
+00:00:05,552 --> 00:00:08,380
+For an online database migration, the dangerous
+
+4
+00:00:08,380 --> 00:00:11,613
+question is not whether each step is valid.
+
+5
+00:00:11,613 --> 00:00:15,249
+It is whether one compatibility-window ordering corrupts the result.
+
+6
+00:00:15,249 --> 00:00:18,481
+CutoverProof puts that change on trial before production.
+
+7
+00:00:19,281 --> 00:00:22,167
+CutoverProof is a shared change contract.
+
+8
+00:00:22,167 --> 00:00:25,535
+The agent prepares the case, PostgreSQL produces
+
+9
+00:00:25,535 --> 00:00:28,902
+independent evidence, and the engineer keeps authority.
+
+10
+00:00:28,902 --> 00:00:33,713
+In this signed-in workspace, five WebMCP browser tools are ready.
+
+11
+00:00:34,513 --> 00:00:38,395
+The agent can list and inspect migration contracts, prepare a
+
+12
+00:00:38,395 --> 00:00:42,665
+visible review, read verified evidence, and open a pending repair review.
+
+13
+00:00:42,665 --> 00:00:46,547
+Every tool has a closed schema and explicit safety hints.
+
+14
+00:00:46,547 --> 00:00:49,653
+There is no tool to run arbitrary SQL,
+
+15
+00:00:49,653 --> 00:00:52,759
+decide the verdict, deploy, or approve a repair.
+
+16
+00:00:53,559 --> 00:00:57,085
+I ask the browser agent to inspect the status-normalization
+
+17
+00:00:57,085 --> 00:01:01,003
+contract and focus on stale writes during the compatibility window.
+
+18
+00:01:01,003 --> 00:01:04,530
+Its only write action creates this idempotent review draft.
+
+19
+00:01:04,530 --> 00:01:07,273
+The card appears in my workspace and
+
+20
+00:01:07,273 --> 00:01:10,015
+states the boundary clearly: nothing has executed.
+
+21
+00:01:10,815 --> 00:01:14,235
+The agent hands the decision back to me.
+
+22
+00:01:14,235 --> 00:01:16,800
+I inspect the migration objective, candidate
+
+23
+00:01:16,800 --> 00:01:19,793
+budget, operations, invariant count, and isolated environment.
+
+24
+00:01:19,793 --> 00:01:23,641
+Only this visible human control can start the assessment.
+
+25
+00:01:23,641 --> 00:01:27,061
+The internal planner may choose experiments, but it
+
+26
+00:01:27,061 --> 00:01:30,481
+still cannot cross the execution boundary by itself.
+
+27
+00:01:31,281 --> 00:01:36,224
+A dangerous ordering is executed against a freshly reset PostgreSQL sandbox.
+
+28
+00:01:36,224 --> 00:01:39,819
+Here, an old payment write changes the legacy
+
+29
+00:01:39,819 --> 00:01:43,864
+status after backfill, leaving the new status reference stale.
+
+30
+00:01:43,864 --> 00:01:46,560
+A read-only invariant returns the exact
+
+31
+00:01:46,560 --> 00:01:49,257
+violating row, so CutoverProof blocks cutover.
+
+32
+00:01:49,257 --> 00:01:53,751
+The model proposed the experiment; deterministic code decided what happened.
+
+33
+00:01:54,551 --> 00:01:57,154
+WebMCP can read the verified evidence
+
+34
+00:01:57,154 --> 00:01:59,758
+and navigate to this repair decision.
+
+35
+00:01:59,758 --> 00:02:01,493
+It cannot approve it.
+
+36
+00:02:01,493 --> 00:02:04,531
+A named engineer authorizes one allow-listed sandbox
+
+37
+00:02:04,531 --> 00:02:08,002
+repair, and CutoverProof replays the identical failing schedule.
+
+38
+00:02:08,002 --> 00:02:11,039
+The final record connects the counterexample, human
+
+39
+00:02:11,039 --> 00:02:14,511
+approval, and passing replay without claiming exhaustive safety.
+
+40
+00:02:15,311 --> 00:02:22,519
+CutoverProof starts with PostgreSQL migrations, but the ambition is broader: every agent-led production change should have
+
+41
+00:02:22,519 --> 00:02:29,727
+a declared contract, bounded experiments, independent proof, and a human authority line the agent cannot cross.
