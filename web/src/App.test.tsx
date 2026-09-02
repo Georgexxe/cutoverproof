@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppV2 as App } from "./App";
+import { WEBMCP_REVIEW_CREATED } from "./webmcp";
 
 const scenarios = [{ id: "u1_status_trigger_race", name: "Status Normalization Trigger/Backfill Race", description: "A legacy write races the status backfill.", max_candidates: 8, operation_count: 8, invariant_count: 1 }];
 
@@ -10,11 +11,12 @@ describe("CutoverProof customer workspace", () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       let body: unknown = {};
-      if (url.endsWith("/api/auth/session")) body = { authenticated: true, email: "engineer@cutoverproof.dev" };
+      if (url.endsWith("/api/auth/session")) body = { authenticated: true, email: "engineer@cutoverproof.dev", csrf_token: "test-csrf" };
       else if (url.endsWith("/api/health")) body = { status: "ok", model_configured: true, execution_boundary: "sandbox", demo_access_configured: true };
       else if (url.endsWith("/api/scenarios")) body = scenarios;
       else if (url.endsWith("/api/runs")) body = init?.method === "POST" ? { job_id: "job-1", status: "queued" } : [];
       else if (url.endsWith("/api/connections")) body = { configured: { id: "configured", label: "Configured demo sandbox", host: "localhost", port: 5432, database: "cutoverproof_sandbox", username: "cutover", status: "configured" }, ephemeral: [] };
+      else if (url.endsWith("/api/webmcp/review-drafts")) body = [];
       return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     }));
   });
@@ -22,9 +24,9 @@ describe("CutoverProof customer workspace", () => {
 
   it("opens on a real workspace rather than a preselected result", async () => {
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Test your first migration" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Prove the change before you cut over." })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "CutoverProof home" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Take a quick tour" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Run guided demo" })).toBeEnabled();
     expect(screen.getByRole("button", { name: /New assessment/i })).toBeEnabled();
     expect(screen.queryByText("Prepared judge experience")).not.toBeInTheDocument();
     expect(screen.queryByText("Execution services")).not.toBeInTheDocument();
@@ -33,7 +35,7 @@ describe("CutoverProof customer workspace", () => {
 
   it("keeps the guided tour separate from an engineer's own assessment", async () => {
     const user = userEvent.setup(); render(<App />);
-    await user.click(await screen.findByRole("button", { name: "Take a quick tour" }));
+    await user.click(await screen.findByRole("button", { name: "Run guided demo" }));
     expect(screen.getByRole("dialog", { name: "Guided tour" })).toBeInTheDocument();
     expect(screen.getByText("Status Normalization Trigger/Backfill Race")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Exit tour" }));
@@ -48,7 +50,7 @@ describe("CutoverProof customer workspace", () => {
     const user = userEvent.setup(); render(<App />);
     await user.click(await screen.findByRole("button", { name: "Account menu" }));
     expect(screen.getByText("Signed in as")).toBeInTheDocument();
-    await user.click(screen.getByRole("heading", { name: "Test your first migration" }));
+    await user.click(screen.getByRole("heading", { name: "Prove the change before you cut over." }));
     expect(screen.queryByText("Signed in as")).not.toBeInTheDocument();
   });
 
@@ -60,5 +62,30 @@ describe("CutoverProof customer workspace", () => {
     await user.click(screen.getByRole("switch", { name: "Open technical evidence automatically" }));
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(screen.getByText("Preferences saved")).toBeInTheDocument();
+  });
+
+  it("turns an agent-created draft into a visible human handoff", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Prove the change before you cut over." });
+    act(() => {
+      window.dispatchEvent(new CustomEvent(WEBMCP_REVIEW_CREATED, { detail: {
+        id: "draft-visible",
+        scenario_id: "u1_status_trigger_race",
+        contract_name: "Status Normalization Trigger/Backfill Race",
+        objective: "Verify stale-write compatibility before the production cutover.",
+        risk_focus: ["stale_writes", "compatibility_window"],
+        status: "awaiting_human_review",
+        requested_by: "browser_agent",
+        created_at: "2026-09-02T12:00:00Z",
+        human_action: "Review and start the sandbox assessment.",
+        execution_started: false,
+      } }));
+    });
+
+    expect(await screen.findByText("Agent-prepared review")).toBeInTheDocument();
+    expect(screen.getByText("Nothing has executed. A human must start the sandbox assessment.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Review & run" }));
+    expect(screen.getByRole("dialog", { name: "Run assessment" })).toBeInTheDocument();
   });
 });

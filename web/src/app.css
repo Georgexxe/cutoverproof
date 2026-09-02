@@ -441,6 +441,12 @@ button { color: inherit; }
 .workspace-heading > .eyebrow { margin-bottom: 12px; color: var(--brand); }
 .workspace-heading h1 { margin: 0 0 8px; font-size: clamp(42px,4.4vw,58px); line-height: 1; letter-spacing: -1.6px; }
 .workspace-heading p { margin: 0; color: var(--muted); font-size: 18px; }
+.change-control-heading { max-width: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; }
+.change-control-heading > div { max-width: 780px; }
+.webmcp-status { margin-top: 8px; padding: 9px 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: #fff; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.webmcp-status > span { width: 8px; height: 8px; border-radius: 50%; background: #aeb4c5; }
+.webmcp-status.ready { border-color: #b9dfce; background: var(--success-soft); color: var(--success); }
+.webmcp-status.ready > span { background: #1f9d6a; box-shadow: 0 0 0 4px rgba(31,157,106,.12); }
 .first-assessment { margin-top: 42px; padding: clamp(28px,4vw,46px); border: 1px solid #d7dbeb; border-radius: 18px; background: linear-gradient(145deg,#fff 0%,#fafaff 100%); box-shadow: 0 18px 55px rgba(24,35,80,.07); }
 .first-assessment-copy { max-width: 700px; }
 .first-assessment-copy .eyebrow { margin: 0 0 9px; color: var(--brand); }
@@ -452,6 +458,8 @@ button { color: inherit; }
 .workflow-steps svg { width: 22px; }
 .workflow-steps strong { font-family: var(--display); font-size: 22px; }
 .workflow-steps p { margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
+.authority-steps li { position: relative; }
+.authority-steps small { margin-bottom: 5px; color: var(--brand); font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; display: block; }
 .first-assessment footer { margin-top: 28px; display: flex; align-items: center; gap: 22px; }
 .first-assessment-cta { min-height: 52px; padding-inline: 22px; }
 .first-assessment-cta svg, .first-assessment footer .text-button svg { width: 19px; }
@@ -466,6 +474,27 @@ button { color: inherit; }
 .quick-action small { color: var(--muted); font-size: 15px; }
 .quick-action > svg { width: 19px; color: #9298a9; }
 .recent-runs-section { margin-top: 58px; }
+.agent-review-card { margin-top: 24px; padding: 24px; border: 1px solid #b9c0ff; border-radius: 14px; background: linear-gradient(135deg,#f6f7ff,#fff); box-shadow: 0 14px 38px rgba(44,55,160,.08); display: grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items: center; gap: 20px; }
+.agent-review-icon { width: 52px; height: 52px; border-radius: 13px; background: var(--brand); color: #fff; display: grid; place-items: center; }
+.agent-review-icon svg { width: 27px; }
+.agent-review-copy { min-width: 0; }
+.agent-review-meta { margin-bottom: 5px; display: flex; gap: 10px; }
+.agent-review-meta span { color: var(--brand); font-size: 11px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+.agent-review-meta span:last-child { color: #7d5c00; }
+.agent-review-copy h2 { margin: 0 0 6px; font-size: 26px; }
+.agent-review-copy > p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.42; }
+.agent-review-copy ul { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 7px; }
+.agent-review-copy li { padding: 5px 8px; border: 1px solid #d8dcff; border-radius: 999px; background: #fff; color: #3b46a8; font-size: 11px; font-weight: 700; text-transform: capitalize; }
+.agent-review-copy > small { margin-top: 12px; color: #5c6375; display: flex; align-items: center; gap: 7px; }
+.agent-review-copy > small svg { width: 15px; color: var(--success); }
+.control-boundary { margin-top: 18px; padding: 17px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fff; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+.control-boundary > div { min-width: 0; display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: center; gap: 10px; }
+.control-boundary > div > svg { width: 21px; color: var(--brand); }
+.control-boundary span { min-width: 0; display: grid; gap: 2px; }
+.control-boundary strong { font-size: 13px; }
+.control-boundary small { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.compact-assessment-list article { min-height: 112px; }
+.empty-history { margin: 0; padding: 24px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--muted); background: #fcfcff; }
 .compact-heading { align-items: center; }
 .compact-heading h2 { margin: 0; font-size: 32px; }
 
@@ -584,6 +613,10 @@ button { color: inherit; }
   .assessment-list article { grid-template-columns: minmax(0,1fr) 130px 86px; gap: 18px; }
   .settings-layout { grid-template-columns: 1fr; }
   .settings-aside { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .change-control-heading { flex-direction: column; gap: 14px; }
+  .webmcp-status { margin-top: 0; }
+  .agent-review-card { grid-template-columns: 46px minmax(0,1fr); }
+  .agent-review-card > button { grid-column: 2; justify-self: start; }
 }
 @media (max-width: 700px) {
   .workflow-steps { grid-template-columns: 1fr; }
@@ -623,6 +656,11 @@ button { color: inherit; }
   .settings-control-row .toggle-control { align-self: flex-end; margin-top: -38px; }
   .settings-status-list dd { text-align: left; }
   .settings-aside { grid-template-columns: 1fr; }
+  .control-boundary { grid-template-columns: 1fr; }
+  .control-boundary small { white-space: normal; }
+  .agent-review-card { padding: 20px; grid-template-columns: 1fr; }
+  .agent-review-icon { width: 44px; height: 44px; }
+  .agent-review-card > button { grid-column: 1; width: 100%; justify-content: center; }
   .custom-intro { grid-template-columns: 42px minmax(0,1fr); gap: 12px; padding-bottom: 15px; }
   .custom-intro-icon { width: 42px; height: 42px; }
   .tour-card { padding: 19px; }

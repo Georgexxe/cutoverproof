@@ -276,6 +276,63 @@ def list_scenarios() -> list[dict[str, Any]]:
     )
 
 
+def inspect_change_contract(scenario_id: str) -> dict[str, Any]:
+    """Return the agent-visible contract without evaluator answers or raw SQL."""
+
+    scenario = ScenarioLoader().load_agent_view(scenario_id)
+    return {
+        "id": scenario.id,
+        "name": scenario.name,
+        "objective": scenario.description,
+        "phase_order": [
+            {
+                "id": phase.id,
+                "name": phase.name.replace(" Phase", ""),
+                "guardrail": phase.description,
+            }
+            for phase in scenario.phases
+            if phase.id != "seed"
+        ],
+        "declared_operations": [
+            {
+                "id": operation.id,
+                "actor": operation.actor,
+                "phase": operation.phase,
+                "intent": operation.description,
+            }
+            for operation in scenario.operations.values()
+        ],
+        "invariants": [
+            {
+                "id": invariant.id,
+                "name": invariant.name,
+                "meaning": invariant.description,
+            }
+            for invariant in scenario.invariants
+        ],
+        "allowed_repairs": [
+            {
+                "id": repair.id,
+                "name": repair.name,
+                "meaning": repair.description,
+                "requires_human_approval": True,
+            }
+            for repair in scenario.permitted_repairs
+        ],
+        "candidate_budget": scenario.max_candidates,
+        "max_schedule_length": scenario.max_schedule_length,
+        "authority": {
+            "agent": "May inspect this contract and prepare a review draft.",
+            "verifier": "Executes declared operations in PostgreSQL and decides invariant outcomes.",
+            "human": "Must start the sandbox assessment and approve any repair replay.",
+        },
+        "claims_boundary": (
+            "A passing bounded search means only that no counterexample was found within "
+            "the tested candidate budget; it is not proof that the migration is safe."
+        ),
+    }
+
+
 def list_runs() -> list[dict[str, Any]]:
     summaries: list[dict[str, Any]] = []
     for path in sorted(RUNS_ROOT.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True):

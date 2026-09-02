@@ -6,6 +6,12 @@
 
 CutoverProof helps backend and data-platform engineers test the compatibility window of an online migration. A specialised agent proposes short operation orderings; a controlled harness resets a disposable PostgreSQL database, executes only declared operations, and decides pass/fail with independent SQL invariants. The model proposes experiments—it never supplies the verdict.
 
+## WebMCP change control
+
+The signed-in product now exposes five typed browser tools so a compatible agent can list and inspect migration contracts, create a visible human-review draft, read verified evidence, and open a pending repair review. The agent cannot start an assessment, execute arbitrary SQL, approve a repair, or deploy. The shared authority model is visible in the product: **agent prepares, PostgreSQL verifies, human authorizes**.
+
+The implementation, safety properties, exact pre-existing-versus-new disclosure, and browser reproduction path are documented in [`docs/WEBMCP-EXTENSIONS.md`](docs/WEBMCP-EXTENSIONS.md).
+
 **Live product:** [cutoverproof-1021060138341.us-central1.run.app](https://cutoverproof-1021060138341.us-central1.run.app)
 
 This is a bounded, synthetic hackathon testbed. It does not ingest arbitrary production migrations and it does not prove a migration safe.
@@ -130,7 +136,7 @@ Free-tier quotas can change and retries consume provider requests. Running the e
 python -m pytest tests -q
 ```
 
-Expected audited result: `38 passed`.
+Expected audited result: `42 passed`.
 
 The React checks are independent of the Python suite:
 

@@ -9,7 +9,9 @@ import logging
 import os
 import re
 import secrets
+import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus, urlparse
@@ -21,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.api.schemas import (
     ConnectionTestRequest,
+    ChangeReviewDraftCreate,
     JobAccepted,
     LoginRequest,
     RepairApproval,
@@ -34,6 +37,7 @@ from src.api.service import (
     evidence_path,
     execute_run,
     get_run,
+    inspect_change_contract,
     list_runs,
     list_scenarios,
 )
@@ -47,6 +51,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WEB_DIST = PROJECT_ROOT / "web" / "dist" / "client"
 IMPORTED_SCENARIOS = PROJECT_ROOT / "artifacts" / "imported_scenarios"
 SESSION_COOKIE = "cutoverproof_session"
+SESSION_SECONDS = 8 * 60 * 60
+LOGIN_WINDOW_SECONDS = 15 * 60
+LOGIN_MAX_FAILURES = 7
 
 app = FastAPI(
     title="CutoverProof API",
@@ -81,15 +88,86 @@ def _expected_login() -> tuple[str, str]:
     return email, password
 
 
+def _session_record(request: Request) -> dict[str, Any]:
+    token = request.cookies.get(SESSION_COOKIE, "")
+    record = _state_dict(request.app, "sessions").get(token)
+    if not record:
+        raise HTTPException(status_code=401, detail="Sign in to continue.")
+    return record
+
+
+def _client_key(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    return forwarded or (request.client.host if request.client else "unknown")
+
+
+def _check_login_limit(request: Request) -> None:
+    now = time.monotonic()
+    key = _client_key(request)
+    attempts = _state_dict(request.app, "login_failures")
+    recent = [stamp for stamp in attempts.get(key, []) if now - stamp < LOGIN_WINDOW_SECONDS]
+    attempts[key] = recent
+    if len(recent) >= LOGIN_MAX_FAILURES:
+        logger.warning("Blocked rate-limited demo login from %s", key)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many sign-in attempts. Try again in fifteen minutes.",
+            headers={"Retry-After": str(LOGIN_WINDOW_SECONDS)},
+        )
+
+
+def _record_login_failure(request: Request) -> None:
+    _state_dict(request.app, "login_failures").setdefault(_client_key(request), []).append(
+        time.monotonic()
+    )
+
+
+def _cookie_is_secure(request: Request) -> bool:
+    configured = os.environ.get("CUTOVERPROOF_COOKIE_SECURE")
+    if configured is not None:
+        return configured.lower() == "true"
+    return request.headers.get("x-forwarded-proto", request.url.scheme).lower() == "https"
+
+
 @app.middleware("http")
 async def require_demo_session(request: Request, call_next):
     public_paths = {"/api/health", "/api/auth/login", "/api/auth/session", "/api"}
     if request.url.path.startswith("/api/") and request.url.path not in public_paths:
         token = request.cookies.get(SESSION_COOKIE, "")
         sessions = _state_dict(request.app, "sessions")
-        if not token or token not in sessions:
+        record = sessions.get(token)
+        if not token or not record:
             return JSONResponse(status_code=401, content={"detail": "Sign in to continue."})
+        if time.time() - record["created_at"] > SESSION_SECONDS:
+            sessions.pop(token, None)
+            return JSONResponse(status_code=401, content={"detail": "Your demo session expired."})
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            supplied = request.headers.get("x-csrf-token", "")
+            if not supplied or not hmac.compare_digest(supplied, record["csrf_token"]):
+                logger.warning("Rejected mutation with an invalid CSRF token on %s", request.url.path)
+                return JSONResponse(status_code=403, content={"detail": "Invalid request token."})
     return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; "
+        "base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = (
+        "tools=(self), geolocation=(), camera=(), microphone=(), payment=()"
+    )
+    response.headers["Origin-Agent-Cluster"] = "?1"
+    response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/api/") else "no-cache"
+    if _cookie_is_secure(request):
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 @app.exception_handler(ProductServiceError)
@@ -110,21 +188,34 @@ async def health() -> dict[str, Any]:
 
 @app.post("/api/auth/login", tags=["auth"])
 async def login(payload: LoginRequest, request: Request) -> JSONResponse:
+    _check_login_limit(request)
     expected_email, expected_password = _expected_login()
     email_ok = hmac.compare_digest(payload.email.strip().lower(), expected_email)
     password_ok = hmac.compare_digest(payload.password, expected_password)
     if not (email_ok and password_ok):
+        _record_login_failure(request)
+        logger.warning("Rejected demo login from %s", _client_key(request))
         raise HTTPException(status_code=401, detail="Email or password is incorrect.")
     token = secrets.token_urlsafe(32)
-    _state_dict(request.app, "sessions")[token] = {"email": expected_email}
-    response = JSONResponse({"authenticated": True, "email": expected_email})
+    csrf_token = secrets.token_urlsafe(32)
+    _state_dict(request.app, "login_failures").pop(_client_key(request), None)
+    _state_dict(request.app, "sessions")[token] = {
+        "email": expected_email,
+        "created_at": time.time(),
+        "csrf_token": csrf_token,
+        "connections": {},
+        "review_drafts": {},
+    }
+    response = JSONResponse(
+        {"authenticated": True, "email": expected_email, "csrf_token": csrf_token}
+    )
     response.set_cookie(
         SESSION_COOKIE,
         token,
         httponly=True,
-        secure=os.environ.get("CUTOVERPROOF_COOKIE_SECURE", "false").lower() == "true",
+        secure=_cookie_is_secure(request),
         samesite="strict",
-        max_age=8 * 60 * 60,
+        max_age=SESSION_SECONDS,
         path="/",
     )
     return response
@@ -133,8 +224,16 @@ async def login(payload: LoginRequest, request: Request) -> JSONResponse:
 @app.get("/api/auth/session", tags=["auth"])
 async def session(request: Request) -> dict[str, Any]:
     token = request.cookies.get(SESSION_COOKIE, "")
-    record = _state_dict(request.app, "sessions").get(token)
-    return {"authenticated": bool(record), "email": record.get("email") if record else None}
+    sessions = _state_dict(request.app, "sessions")
+    record = sessions.get(token)
+    if record and time.time() - record["created_at"] > SESSION_SECONDS:
+        sessions.pop(token, None)
+        record = None
+    return {
+        "authenticated": bool(record),
+        "email": record.get("email") if record else None,
+        "csrf_token": record.get("csrf_token") if record else None,
+    }
 
 
 @app.post("/api/auth/logout", tags=["auth"])
@@ -259,7 +358,7 @@ async def scenario_pack_template() -> dict[str, Any]:
 async def connections(request: Request) -> dict[str, Any]:
     configured = DatabaseManager()
     parsed = urlparse(configured.connection_url)
-    saved = [value["public"] for value in _state_dict(request.app, "connections").values()]
+    saved = [value["public"] for value in _session_record(request)["connections"].values()]
     return {
         "configured": {
             "id": "configured",
@@ -308,8 +407,57 @@ async def test_connection(payload: ConnectionTestRequest, request: Request) -> d
         "server_version": rows[0]["server_version"],
         "status": "verified",
     }
-    _state_dict(request.app, "connections")[connection_id] = {"url": url, "public": public}
+    _session_record(request)["connections"][connection_id] = {"url": url, "public": public}
     return public
+
+
+@app.get("/api/webmcp/contracts", tags=["webmcp"])
+async def webmcp_contracts() -> list[dict[str, Any]]:
+    return await asyncio.to_thread(list_scenarios)
+
+
+@app.get("/api/webmcp/contracts/{scenario_id}", tags=["webmcp"])
+async def webmcp_contract(scenario_id: str) -> dict[str, Any]:
+    try:
+        return await asyncio.to_thread(inspect_change_contract, scenario_id)
+    except Exception as exc:
+        logger.info("Contract lookup failed for %s", scenario_id)
+        raise HTTPException(404, "Migration contract not found.") from exc
+
+
+@app.get("/api/webmcp/review-drafts", tags=["webmcp"])
+async def webmcp_review_drafts(request: Request) -> list[dict[str, Any]]:
+    drafts = _session_record(request)["review_drafts"].values()
+    return sorted(drafts, key=lambda item: item["created_at"], reverse=True)
+
+
+@app.post("/api/webmcp/review-drafts", status_code=201, tags=["webmcp"])
+async def create_webmcp_review_draft(
+    payload: ChangeReviewDraftCreate, request: Request
+) -> dict[str, Any]:
+    try:
+        contract = await asyncio.to_thread(inspect_change_contract, payload.scenario_id)
+    except Exception as exc:
+        raise HTTPException(404, "Migration contract not found.") from exc
+    drafts = _session_record(request)["review_drafts"]
+    existing = drafts.get(payload.idempotency_key)
+    if existing:
+        return existing
+    draft = {
+        "id": uuid.uuid4().hex,
+        "scenario_id": payload.scenario_id,
+        "contract_name": contract["name"],
+        "objective": payload.objective,
+        "risk_focus": payload.risk_focus,
+        "status": "awaiting_human_review",
+        "requested_by": "browser_agent",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "human_action": "Review the contract and explicitly start the sandbox assessment.",
+        "execution_started": False,
+    }
+    drafts[payload.idempotency_key] = draft
+    logger.info("Created WebMCP review draft %s for %s", draft["id"], payload.scenario_id)
+    return draft
 
 
 @app.get("/api/runs", tags=["runs"])
@@ -331,13 +479,7 @@ async def _run_job(app_instance: FastAPI, job_id: str, payload: dict[str, Any]) 
         "stage": "Starting the assessment",
     }
     try:
-        connection_id = payload.pop("connection_id", None)
-        connection_url = None
-        if connection_id:
-            record = _state_dict(app_instance, "connections").get(connection_id)
-            if not record:
-                raise ProductServiceError("The selected sandbox connection has expired. Test it again.")
-            connection_url = record["url"]
+        connection_url = payload.pop("connection_url", None)
         def update_progress(progress: int, stage: str) -> None:
             jobs[job_id] = {
                 **jobs[job_id],
@@ -363,7 +505,7 @@ async def _run_job(app_instance: FastAPI, job_id: str, payload: dict[str, Any]) 
             "status": "failed",
             "progress": 100,
             "stage": "Assessment stopped",
-            "error": str(exc),
+            "error": "The assessment stopped before producing a verified result.",
         }
 
 
@@ -382,7 +524,16 @@ async def create_run(payload: RunCreate, request: Request) -> JobAccepted:
         "progress": 0,
         "stage": "Queued",
     }
-    asyncio.create_task(_run_job(request.app, job_id, payload.model_dump()))
+    run_payload = payload.model_dump()
+    connection_id = run_payload.pop("connection_id", None)
+    connection_url = None
+    if connection_id:
+        record = _session_record(request)["connections"].get(connection_id)
+        if not record:
+            raise HTTPException(400, "The selected sandbox connection expired. Test it again.")
+        connection_url = record["url"]
+    run_payload["connection_url"] = connection_url
+    asyncio.create_task(_run_job(request.app, job_id, run_payload))
     return JobAccepted(job_id=job_id, status="queued")
 
 

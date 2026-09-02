@@ -51,6 +51,36 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
+class ChangeReviewDraftCreate(BaseModel):
+    """Creates an agent-prepared review without executing the change."""
+
+    scenario_id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")
+    objective: str = Field(min_length=12, max_length=600)
+    risk_focus: List[
+        Literal[
+            "compatibility_window",
+            "stale_writes",
+            "cutover_ordering",
+            "rollback_readiness",
+            "data_invariants",
+        ]
+    ] = Field(default_factory=list, max_length=5)
+    idempotency_key: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]{7,119}$")
+
+    @field_validator("objective")
+    @classmethod
+    def normalize_objective(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if len(normalized) < 12:
+            raise ValueError("Objective must contain at least twelve characters")
+        return normalized
+
+    @field_validator("risk_focus")
+    @classmethod
+    def unique_risk_focus(cls, value: List[str]) -> List[str]:
+        return list(dict.fromkeys(value))
+
+
 class ConnectionTestRequest(BaseModel):
     host: str = Field(min_length=1, max_length=255)
     port: int = Field(default=5432, ge=1, le=65535)

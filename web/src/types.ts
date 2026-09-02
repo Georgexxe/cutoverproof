@@ -1,6 +1,6 @@
 export type View = "overview" | "assessments" | "assessment" | "runs" | "connections" | "settings";
 
-export interface Session { authenticated: boolean; email: string | null; }
+export interface Session { authenticated: boolean; email: string | null; csrf_token?: string | null; }
 
 export interface Health {
   status: string;
@@ -105,4 +105,24 @@ export interface ConnectionSummary {
 export interface ConnectionsResponse {
   configured: ConnectionSummary;
   ephemeral: ConnectionSummary[];
+}
+
+export interface ChangeReviewDraft {
+  id: string;
+  scenario_id: string;
+  contract_name: string;
+  objective: string;
+  risk_focus: string[];
+  status: "awaiting_human_review";
+  requested_by: "browser_agent";
+  created_at: string;
+  human_action: string;
+  execution_started: false;
+}
+
+export interface WebMcpAvailability {
+  supported: boolean;
+  ready: boolean;
+  toolCount: number;
+  error: string | null;
 }

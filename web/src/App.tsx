@@ -5,8 +5,13 @@ import {
   QueueListIcon, ShieldCheckIcon, UserCircleIcon, XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { apiRequest } from "./lib/api";
-import type { ConnectionSummary, ConnectionsResponse, Health, JobState, RunDetail, RunSummary, ScenarioSummary, Session, View } from "./types";
+import { apiRequest, setCsrfToken } from "./lib/api";
+import {
+  registerCutoverProofTools,
+  WEBMCP_OPEN_REPAIR,
+  WEBMCP_REVIEW_CREATED,
+} from "./webmcp";
+import type { ChangeReviewDraft, ConnectionSummary, ConnectionsResponse, Health, JobState, RunDetail, RunSummary, ScenarioSummary, Session, View, WebMcpAvailability } from "./types";
 
 const NAV_ITEMS: Array<{ id: View; label: string; icon: typeof HomeIcon }> = [
   { id: "overview", label: "Home", icon: HomeIcon },
@@ -231,36 +236,106 @@ export function App() {
 function ProductOverview({
   onTour,
   onNewAssessment,
+  onReviewDraft,
+  onSelectRun,
+  latestDraft,
+  runs,
+  webMcp,
 }: {
   onTour: () => void;
   onNewAssessment: () => void;
+  onReviewDraft: (scenarioId: string) => void;
+  onSelectRun: (runId: string) => void;
+  latestDraft: ChangeReviewDraft | null;
+  runs: RunSummary[];
+  webMcp: WebMcpAvailability;
 }) {
+  const toolStatus = webMcp.ready
+    ? `${webMcp.toolCount} browser tools ready`
+    : webMcp.supported
+      ? "Connecting browser tools"
+      : "Human controls active";
   return (
     <main className="main-content overview-view workspace-home">
-      <section className="workspace-heading">
-        <p className="eyebrow">Migration testing</p>
-        <h1>Test your first migration</h1>
-        <p>Catch unsafe database changes before they reach production.</p>
+      <section className="workspace-heading change-control-heading">
+        <div>
+          <p className="eyebrow">Production change control</p>
+          <h1>Prove the change before you cut over.</h1>
+          <p>Agents prepare the case. PostgreSQL produces the evidence. You keep authority.</p>
+        </div>
+        <span className={`webmcp-status ${webMcp.ready ? "ready" : ""}`}><span />{toolStatus}</span>
       </section>
 
       <section className="first-assessment" data-tour="how-it-works">
         <div className="first-assessment-copy">
-          <p className="eyebrow">How it works</p>
-          <h2>A safer answer in three steps</h2>
-          <p>Start with the built-in example or import your own migration. CutoverProof tests it without touching production.</p>
+          <p className="eyebrow">Shared change contract</p>
+          <h2>One decision. Three independent authorities.</h2>
+          <p>Every migration stays inside a declared contract: bounded operations, explicit invariants, and a named human decision.</p>
         </div>
-        <ol className="workflow-steps">
-          <li><span><ArrowUpTrayIcon /></span><div><strong>Import</strong><p>Add your migration or load the example.</p></div></li>
-          <li><span><CircleStackIcon /></span><div><strong>Test safely</strong><p>Run every candidate in an isolated database.</p></div></li>
-          <li><span><ShieldCheckIcon /></span><div><strong>Review</strong><p>See what failed and verify the fix.</p></div></li>
+        <ol className="workflow-steps authority-steps">
+          <li><span><CodeBracketSquareIcon /></span><div><small>Agent</small><strong>Prepare</strong><p>Inspect the contract, focus the risks, and create a visible review draft.</p></div></li>
+          <li><span><CircleStackIcon /></span><div><small>Verifier</small><strong>Prove</strong><p>Execute only declared operations and decide invariants with PostgreSQL evidence.</p></div></li>
+          <li><span><UserCircleIcon /></span><div><small>Human</small><strong>Authorize</strong><p>Start the sandbox run and approve any bounded repair replay by name.</p></div></li>
         </ol>
         <footer>
-          <button className="primary-button first-assessment-cta" data-tour="new-assessment" onClick={onNewAssessment}><PlusIcon />New assessment</button>
-          <button className="text-button" onClick={onTour}><PlayIcon />Take a quick tour</button>
+          <button className="primary-button first-assessment-cta" onClick={onTour}><PlayIcon />Run guided demo</button>
+          <button className="secondary-button first-assessment-cta" data-tour="new-assessment" onClick={onNewAssessment}><PlusIcon />New assessment</button>
         </footer>
+      </section>
+
+      {latestDraft ? <section className="agent-review-card" aria-live="polite">
+        <div className="agent-review-icon"><CodeBracketSquareIcon /></div>
+        <div className="agent-review-copy">
+          <div className="agent-review-meta"><span>Agent-prepared review</span><span>Awaiting you</span></div>
+          <h2>{latestDraft.contract_name}</h2>
+          <p>{latestDraft.objective}</p>
+          {latestDraft.risk_focus.length ? <ul>{latestDraft.risk_focus.map((risk) => <li key={risk}>{risk.replaceAll("_", " ")}</li>)}</ul> : null}
+          <small><LockClosedIcon />Nothing has executed. A human must start the sandbox assessment.</small>
+        </div>
+        <button className="primary-button" onClick={() => onReviewDraft(latestDraft.scenario_id)}>Review &amp; run</button>
+      </section> : null}
+
+      <section className="control-boundary" aria-label="CutoverProof authority boundary">
+        <div><ShieldCheckIcon /><span><strong>Agent-readable</strong><small>Contracts and verified evidence</small></span></div>
+        <div><LockClosedIcon /><span><strong>Human-gated</strong><small>Run start and repair approval</small></span></div>
+        <div><CircleStackIcon /><span><strong>Verifier-owned</strong><small>Pass, block, and replay verdicts</small></span></div>
+      </section>
+
+      <section className="recent-runs-section">
+        <div className="section-heading compact-heading"><div><p className="eyebrow">Decision history</p><h2>Recent assessments</h2></div></div>
+        {runs.length ? <div className="assessment-list compact-assessment-list">{runs.slice(0, 3).map((item) => <article key={item.run_id}>
+          <div className="assessment-list-copy"><small>{item.status_label}</small><h2>{item.title}</h2><p>{item.scenario_name}</p></div>
+          <dl><div><dt>Candidates</dt><dd>{item.candidates_attempted}/{item.max_budget}</dd></div><div><dt>Runtime</dt><dd>{item.wall_clock_seconds}s</dd></div></dl>
+          <button className="secondary-button" onClick={() => onSelectRun(item.run_id)}>Open</button>
+        </article>)}</div> : <p className="empty-history">No decisions yet. Run the guided demo or let your browser agent prepare a review.</p>}
       </section>
     </main>
   );
+}
+
+function useWebMcpAvailability(active: boolean): WebMcpAvailability {
+  const [availability, setAvailability] = useState<WebMcpAvailability>({
+    supported: false,
+    ready: false,
+    toolCount: 0,
+    error: null,
+  });
+  useEffect(() => {
+    if (!active) {
+      setAvailability({ supported: false, ready: false, toolCount: 0, error: null });
+      return;
+    }
+    const registration = registerCutoverProofTools();
+    setAvailability({ supported: registration.supported, ready: false, toolCount: registration.toolNames.length, error: null });
+    registration.ready.then(() => {
+      setAvailability({ supported: registration.supported, ready: registration.supported, toolCount: registration.toolNames.length, error: null });
+    }).catch((reason: unknown) => {
+      if (reason instanceof DOMException && reason.name === "AbortError") return;
+      setAvailability({ supported: registration.supported, ready: false, toolCount: registration.toolNames.length, error: reason instanceof Error ? reason.message : "Browser tool registration failed." });
+    });
+    return registration.unregister;
+  }, [active]);
+  return availability;
 }
 
 function GuidedDemoModal({
@@ -483,9 +558,13 @@ export function AppV2() {
   useEffect(() => {
     apiRequest<Session>("/api/auth/session").then(setSession).finally(() => setSessionLoading(false));
   }, []);
+  useEffect(() => {
+    setCsrfToken(session?.csrf_token);
+  }, [session?.csrf_token]);
 
   const active = Boolean(session?.authenticated);
   const data = useWorkspaceData(active);
+  const webMcp = useWebMcpAvailability(active);
   const [view, setView] = useState<View>("overview");
   const [run, setRun] = useState<RunDetail | null>(null);
   const [guidedScenarioId, setGuidedScenarioId] = useState("u1_status_trigger_race");
@@ -497,6 +576,7 @@ export function AppV2() {
   const [job, setJob] = useState<JobState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<ConnectionSummary | null>(null);
+  const [reviewDrafts, setReviewDrafts] = useState<ChangeReviewDraft[]>([]);
   const [preferences, setPreferences] = useState<AppPreferences>(() => {
     try {
       const saved = window.localStorage.getItem("cutoverproof:preferences");
@@ -517,6 +597,31 @@ export function AppV2() {
   useEffect(() => {
     window.sessionStorage.setItem("cutoverproof:user-run-ids", JSON.stringify(userRunIds));
   }, [userRunIds]);
+
+  const refreshReviewDrafts = useCallback(async () => {
+    if (!active) return;
+    try {
+      setReviewDrafts(await apiRequest<ChangeReviewDraft[]>("/api/webmcp/review-drafts"));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Agent-prepared reviews could not load.");
+    }
+  }, [active]);
+
+  useEffect(() => {
+    if (active) void refreshReviewDrafts();
+    else setReviewDrafts([]);
+  }, [active, refreshReviewDrafts]);
+
+  useEffect(() => {
+    const handleReviewCreated = (event: Event) => {
+      const draft = (event as CustomEvent<ChangeReviewDraft>).detail;
+      if (!draft) return;
+      setReviewDrafts((current) => [draft, ...current.filter((item) => item.id !== draft.id)]);
+      setView("overview");
+    };
+    window.addEventListener(WEBMCP_REVIEW_CREATED, handleReviewCreated);
+    return () => window.removeEventListener(WEBMCP_REVIEW_CREATED, handleReviewCreated);
+  }, []);
 
   const savePreferences = useCallback((next: AppPreferences) => {
     setPreferences(next);
@@ -541,6 +646,22 @@ export function AppV2() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Run could not load.");
     }
+  }, []);
+
+  useEffect(() => {
+    const handleOpenRepair = (event: Event) => {
+      const runId = (event as CustomEvent<{ run_id: string }>).detail?.run_id;
+      if (!runId) return;
+      void apiRequest<RunDetail>(`/api/runs/${encodeURIComponent(runId)}`).then((detail) => {
+        setRun(detail);
+        setView("assessment");
+        setShowApproval(Boolean(detail.repair && !detail.repair.approved));
+      }).catch((reason) => {
+        setError(reason instanceof Error ? reason.message : "Repair review could not open.");
+      });
+    };
+    window.addEventListener(WEBMCP_OPEN_REPAIR, handleOpenRepair);
+    return () => window.removeEventListener(WEBMCP_OPEN_REPAIR, handleOpenRepair);
   }, []);
 
   const startAssessment = useCallback(async (payload: Record<string, unknown>) => {
@@ -590,6 +711,7 @@ export function AppV2() {
     setSession({ authenticated: false, email: null });
     setRun(null);
     setUserRunIds([]);
+    setReviewDrafts([]);
     window.sessionStorage.removeItem("cutoverproof:user-run-ids");
     setView("overview");
   };
@@ -611,16 +733,17 @@ export function AppV2() {
 
   const guidedScenario = data.scenarios.find((item) => item.id === guidedScenarioId) ?? data.scenarios[0];
   const userRuns = data.runs.filter((item) => userRunIds.includes(item.run_id));
+  const latestDraft = reviewDrafts[0] ?? null;
 
   const content = useMemo(() => {
     if (data.initializing) return <main className="main-content"><div className="loading-panel">Opening workspace…</div></main>;
-    if (view === "overview") return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} />;
+    if (view === "overview") return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} onReviewDraft={openGuided} onSelectRun={selectRun} latestDraft={latestDraft} runs={userRuns} webMcp={webMcp} />;
     if (view === "assessments") return <AssessmentHistoryView runs={userRuns} onNew={() => setShowCustom(true)} onSelect={selectRun} />;
     if (view === "settings") return <SettingsView email={session?.email ?? ""} health={data.health} connection={data.connections?.configured ?? null} preferences={preferences} onSave={savePreferences} onLogout={() => void logout()} />;
     if (view === "connections") return <ConnectionsView data={data.connections} onRefresh={data.refreshConnections} onSelect={setSelectedConnection} />;
     if (run) return <AssessmentView run={run} onApprove={() => setShowApproval(true)} onEvidence={() => setShowEvidence(true)} onRetry={() => openGuided(run.scenario_id)} />;
-    return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} />;
-  }, [data, view, run, selectRun, userRuns, session?.email, preferences, savePreferences]);
+    return <ProductOverview onTour={openTour} onNewAssessment={() => setShowCustom(true)} onReviewDraft={openGuided} onSelectRun={selectRun} latestDraft={latestDraft} runs={userRuns} webMcp={webMcp} />;
+  }, [data, view, run, selectRun, userRuns, session?.email, preferences, savePreferences, latestDraft, webMcp]);
 
   if (sessionLoading) return <div className="login-loading"><ShieldCheckIcon />CutoverProof</div>;
   if (!session?.authenticated) return <LoginView onSignedIn={setSession} />;
