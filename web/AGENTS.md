@@ -27,3 +27,6 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - Safe-control fixtures exist for evaluation but must not appear in the customer assessment library or run history.
 - Keep the CutoverProof name. The CP mark leads the brand lockup at a larger size; the text wordmark stays visually quieter so it does not overpower the mark.
 - Support the complete customer journey from 320 px phone width upward. Below 420 px, keep the CP mark but hide the visual wordmark text while preserving its accessible label; do not reintroduce document-level minimum widths.
+# Product interface guidance
+
+- Keep every authenticated screen focused on the user's immediate task. Use concise customer language; place implementation details behind progressive disclosure in Settings or evidence views.

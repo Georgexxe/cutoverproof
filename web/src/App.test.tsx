@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppV2 as App } from "./App";
+import { App } from "./App";
 import { WEBMCP_REVIEW_CREATED } from "./webmcp";
 
 const scenarios = [{ id: "u1_status_trigger_race", name: "Status Normalization Trigger/Backfill Race", description: "A legacy write races the status backfill.", max_candidates: 8, operation_count: 8, invariant_count: 1 }];
@@ -44,9 +44,9 @@ describe("CutoverProof customer workspace", () => {
 
   it("opens on a real workspace rather than a preselected result", async () => {
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Prove the change before you cut over." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Know what’s safe to ship." })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "CutoverProof home" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Run guided demo" })).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: "Run sample" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /New assessment/i })).toBeEnabled();
     expect(screen.queryByText("Prepared judge experience")).not.toBeInTheDocument();
     expect(screen.queryByText("Execution services")).not.toBeInTheDocument();
@@ -55,14 +55,14 @@ describe("CutoverProof customer workspace", () => {
 
   it("keeps the guided tour separate from an engineer's own assessment", async () => {
     const user = userEvent.setup(); render(<App />);
-    await user.click(await screen.findByRole("button", { name: "Run guided demo" }));
+    await user.click((await screen.findAllByRole("button", { name: "Run sample" }))[0]);
     expect(screen.getByRole("dialog", { name: "Guided tour" })).toBeInTheDocument();
     expect(screen.getByText("Status Normalization Trigger/Backfill Race")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Exit tour" }));
     await user.click(screen.getAllByRole("button", { name: "New assessment" })[0]);
     expect(screen.getByRole("dialog", { name: "New assessment" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Load example template" })).toBeEnabled();
-    expect(screen.getByText("Load the example or choose a JSON file to continue.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use sample pack" })).toBeEnabled();
+    expect(screen.getByText("No file selected.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Guided demo" })).not.toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe("CutoverProof customer workspace", () => {
     const user = userEvent.setup(); render(<App />);
     await user.click(await screen.findByRole("button", { name: "Account menu" }));
     expect(screen.getByText("Signed in as")).toBeInTheDocument();
-    await user.click(screen.getByRole("heading", { name: "Prove the change before you cut over." }));
+    await user.click(screen.getByRole("heading", { name: "Know what’s safe to ship." }));
     expect(screen.queryByText("Signed in as")).not.toBeInTheDocument();
   });
 
@@ -78,8 +78,8 @@ describe("CutoverProof customer workspace", () => {
     const user = userEvent.setup(); render(<App />);
     await user.click(await screen.findByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Assessment defaults" })).toBeInTheDocument();
-    await user.selectOptions(screen.getByRole("combobox", { name: /Candidate budget/i }), "6");
-    await user.click(screen.getByRole("switch", { name: "Open technical evidence automatically" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: /Schedules to test/i }), "6");
+    await user.click(screen.getByRole("switch", { name: "Open evidence after a run" }));
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(screen.getByText("Preferences saved")).toBeInTheDocument();
   });
@@ -87,7 +87,7 @@ describe("CutoverProof customer workspace", () => {
   it("turns an agent-created draft into a visible human handoff", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByRole("heading", { name: "Prove the change before you cut over." });
+    await screen.findByRole("heading", { name: "Know what’s safe to ship." });
     act(() => {
       window.dispatchEvent(new CustomEvent(WEBMCP_REVIEW_CREATED, { detail: {
         id: "draft-visible",
@@ -103,8 +103,8 @@ describe("CutoverProof customer workspace", () => {
       } }));
     });
 
-    expect(await screen.findByText("Agent-prepared review")).toBeInTheDocument();
-    expect(screen.getByText("Nothing has executed. A human must start the sandbox assessment.")).toBeInTheDocument();
+    expect(await screen.findByText("Needs your review")).toBeInTheDocument();
+    expect(screen.getByText("Not run yet")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Review & run" }));
     expect(screen.getByRole("dialog", { name: "Run assessment" })).toBeInTheDocument();
   });
@@ -112,15 +112,14 @@ describe("CutoverProof customer workspace", () => {
   it("lets the engineer prepare an agent review directly inside the platform", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByRole("heading", { name: "Ask CutoverProof directly." });
+    await user.click(await screen.findByRole("button", { name: /Prepare a review/i }));
+    expect(screen.getByRole("dialog", { name: "Prepare a review" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Prepare review" }));
 
-    await user.click(screen.getByRole("button", { name: /Prepare with agent/i }));
-
-    expect(await screen.findByText("Discovered contracts")).toBeInTheDocument();
-    expect(await screen.findByText("Inspected contract")).toBeInTheDocument();
-    expect(await screen.findByText("Prepared human review")).toBeInTheDocument();
-    expect(screen.getByText("Agent-prepared review")).toBeInTheDocument();
-    expect(screen.getAllByText("Nothing has executed. A human must start the sandbox assessment.").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Found contracts")).toBeInTheDocument();
+    expect(await screen.findByText("Checked contract")).toBeInTheDocument();
+    expect(await screen.findByText("Prepared review")).toBeInTheDocument();
+    expect(screen.getByText("Draft ready")).toBeInTheDocument();
 
     const calls = vi.mocked(fetch).mock.calls;
     expect(calls.some(([input]) => String(input).endsWith("/api/webmcp/contracts"))).toBe(true);

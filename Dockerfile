@@ -24,11 +24,12 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
 COPY src/ ./src/
 COPY scenarios/ ./scenarios/
 COPY examples/ ./examples/
-COPY artifacts/ ./artifacts/
+COPY artifacts/evaluation/ ./artifacts/evaluation/
 COPY scripts/start-cloud-run.sh ./scripts/start-cloud-run.sh
 COPY --from=web-build /build/web/dist/client ./web/dist/client/
 
-RUN chmod +x ./scripts/start-cloud-run.sh \
+RUN mkdir -p ./artifacts/imported_scenarios ./artifacts/runs ./artifacts/timelines ./artifacts/trajectories \
+    && chmod +x ./scripts/start-cloud-run.sh \
     && chown -R cutoverproof:cutoverproof /app
 USER cutoverproof
 

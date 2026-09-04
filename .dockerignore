@@ -9,6 +9,10 @@
 web/node_modules
 web/dist
 artifacts/invalidated
+artifacts/imported_scenarios
+artifacts/runs
+artifacts/timelines
+artifacts/trajectories
 tests
 submission
 *.zip

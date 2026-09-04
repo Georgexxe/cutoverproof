@@ -6,7 +6,7 @@ import "@fontsource/alegreya-sans/latin-700.css";
 import React from "react";
 import { createRoot } from "react-dom/client";
 
-import { AppV2 as App } from "./App";
+import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./app.css";
 
