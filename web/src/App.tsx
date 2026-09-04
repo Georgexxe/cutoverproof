@@ -794,6 +794,10 @@ export function App() {
       void apiRequest<RunDetail>(`/api/runs/${encodeURIComponent(runId)}`).then((detail) => {
         setRun(detail);
         setView("assessment");
+        setShowEvidence(false);
+        setShowCustom(false);
+        setShowGuided(false);
+        setShowTour(false);
         setShowApproval(Boolean(detail.repair && !detail.repair.approved));
       }).catch((reason) => {
         setError(reason instanceof Error ? reason.message : "Repair review could not open.");
