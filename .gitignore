@@ -14,6 +14,14 @@ submission/video/frames/
 submission/video/contact-sheet.jpg
 submission/video/webmcp-build/
 submission/video/webmcp-voice/
+submission/video/webmcp-live-voice/
+submission/video/*_RAW.mp4
+submission/video/*-contact-sheet.png
+submission/video/final-frame-*.png
+submission/video/obs-*-check.png
+submission/video/capture-check.png
+.obs-appdata/
+.obs-portable/
 output/playwright/
 output/audit-*/
 *.log

@@ -22,6 +22,12 @@ $headers = @{
 $beats = Get-Content -LiteralPath $Plan -Raw | ConvertFrom-Json
 $manifest = @()
 foreach ($beat in $beats) {
+    $path = Join-Path (Resolve-Path -LiteralPath $Output).Path "$($beat.id).wav"
+    if (Test-Path -LiteralPath $path) {
+        Write-Output "Reusing $($beat.id)"
+        $manifest += [ordered]@{ id = $beat.id; audio = "$($beat.id).wav"; voice = $voiceName }
+        continue
+    }
     Write-Output "Synthesizing $($beat.id)"
     $body = @{
         input = @{ text = $beat.text }
@@ -29,7 +35,6 @@ foreach ($beat in $beats) {
         audioConfig = @{ audioEncoding = "LINEAR16"; sampleRateHertz = 24000 }
     } | ConvertTo-Json -Depth 6 -Compress
     $response = Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -ContentType "application/json" -Body $body
-    $path = Join-Path (Resolve-Path -LiteralPath $Output).Path "$($beat.id).wav"
     [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($response.audioContent))
     $manifest += [ordered]@{ id = $beat.id; audio = "$($beat.id).wav"; voice = $voiceName }
 }
