@@ -1,47 +1,52 @@
-# WebMCP demo — final runtime 2:29
+# WebMCP demo — continuous click-led recording
 
-## 0:00–0:18 — The risk
+Target runtime: 2:10–2:30. Record one continuous browser session with the pointer visible. Do not rebuild the old slideshow render. The product, prompts, tool calls, human clicks, and state changes must all be visible.
 
-“AI agents can propose production changes faster than teams can safely review them. The dangerous question is not whether each migration step is valid. It is whether one compatibility-window ordering corrupts the result.”
+## 0:00–0:15 — Set up the risk
 
-Show the CutoverProof home and the three authorities.
+**Screen:** Begin on the signed-in Home screen.
 
-## 0:18–0:38 — The product thesis
+**Voice:** “A PostgreSQL migration can pass review and still corrupt data during rollout. The failure is often an ordering: backfill, an old writer, and cutover are each valid alone, but unsafe together.”
 
-“CutoverProof is a trust layer for agent-led database changes. The agent prepares. PostgreSQL proves. The engineer authorizes.”
+## 0:15–0:43 — Discover and inspect real tools
 
-Show **5 browser tools ready** and briefly reveal the discovered tool list.
+**Clicks and prompts:** Open the browser's available-tools surface so the five CutoverProof tools are visible. Ask: “List the migration contracts on this page.” Then: “Inspect `u1_status_trigger_race`. Who controls preparation, verification, and approval?” Keep the returned tool calls on screen.
 
-## 0:38–1:03 — Structured agent preparation
+**Voice:** “WebMCP gives the browser agent a typed change contract. It can inspect phases, declared operations, invariants, and allowed repairs. It receives no arbitrary SQL tool and no authority to execute or approve.”
 
-Ask the browser agent to list contracts, then inspect `u1_status_trigger_race`.
+## 0:43–1:02 — Create the visible handoff
 
-“WebMCP gives the agent the real phases, operations, invariants, repairs, and authority boundary. It does not scrape those meanings from the interface, and it never receives raw SQL or hidden evaluator answers.”
+**Prompt:** “Prepare a review for `u1_status_trigger_race`, focused on stale writes and the compatibility window.”
 
-## 1:03–1:25 — Visible handoff
+**Screen:** Show the review card appear on Home. Point to **Not run yet**, then click **Review & run**.
 
-Ask the agent to create a review focused on stale writes and compatibility-window risk.
+**Voice:** “The only write creates a review—not an execution. The draft appears in the same workspace, and nothing runs until I inspect it and choose Run assessment.”
 
-Show the review card appear.
+## 1:02–1:32 — PostgreSQL supplies the verdict
 
-“This is the only write tool. It creates an idempotent review draft. Nothing has executed. I still have to review the contract and start the sandbox assessment.”
+**Clicks:** Click **Run assessment**. Keep the live Validate, Plan, Execute, Verify, and Evidence stages visible. When complete, click **View evidence**.
 
-## 1:25–1:54 — Independent proof
+**Voice:** “Gemini proposes a dangerous schedule, but PostgreSQL executes it and a read-only invariant decides the result. One old write leaves the new status reference stale, so CutoverProof blocks cutover and shows the exact ordering and row.”
 
-Select **Review & run** and start the assessment. Cut to the completed result and technical evidence.
+## 1:32–2:03 — The agent stops at the human boundary
 
-“The internal planner chooses a dangerous ordering, but PostgreSQL executes it and a read-only invariant supplies the verdict. Here, an old write leaves the new status reference inconsistent, so CutoverProof blocks cutover with the exact row and ordering.”
+**Prompts:** “Read the verified evidence for this run.” Then: “Open the human repair review.”
 
-## 1:54–2:19 — Human authority
+**Clicks:** Show the repair dialog, type the reviewer name yourself, and click **Approve & replay**. Do not let narration or edits hide these clicks.
 
-Ask the agent to read the verified evidence and open the repair review.
+**Voice:** “The agent can read the database evidence and open this decision. It cannot approve. I authorize one allow-listed repair, and CutoverProof replays the identical failing schedule.”
 
-“The agent can explain the evidence and open this decision. It cannot approve it. I enter my name, approve one allow-listed repair, and CutoverProof replays the identical failing schedule.”
+## 2:03–2:20 — Close on proof, not promise
 
-Show **REPAIR VERIFIED IN SANDBOX**.
+**Screen:** Hold on **REPAIR VERIFIED IN SANDBOX**.
 
-## 2:18–2:29 — Close
+**Voice:** “The same schedule now returns zero violating rows. CutoverProof does not claim every schedule is safe. It proves this failure, records the human decision, and verifies this bounded repair.”
 
-“This starts with PostgreSQL migrations, but the product idea is broader: every agent-led production change should have a declared contract, bounded experiments, independent proof, and a human authority line it cannot cross.”
+## Recording gates
 
-End on the home authority strip and repository/live-product links.
+- One continuous browser capture; no slide sequence.
+- Pointer, typed prompts, tool names, tool responses, human clicks, and state transitions remain visible.
+- Show all five tool names and visibly exercise all five.
+- Never expose the judge password or any token.
+- Final frame includes the live-product and repository links.
+- Do not submit `submission/video/CutoverProof_WebMCP_Demo.mp4`; it predates this live workflow.

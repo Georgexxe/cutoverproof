@@ -1,5 +1,15 @@
 # Live deployment verification
 
+## Product-polish release verification — 2026-09-04
+
+- Source release: `8282b71`
+- Cloud Build: `a1dc2c04-3ca1-468f-8bf0-712d948b8577` (`SUCCESS`)
+- Cloud Run revision: `cutoverproof-00010-xf9` (100% traffic)
+- Container digest: `sha256:c6ff9a6cdf1f4e080cd92a078fc11a9567c88c5054a25fb62fb6c4f50eada532`
+- Immediate rollback revision: `cutoverproof-00009-ns7`
+
+The final public smoke verified HTTP 200 health, configured Vertex access, secret-backed judge login, exactly five intended contracts, all five registered WebMCP tools, real calls to each tool, visible review handoff, one PostgreSQL violating row, `DO NOT CUT OVER`, named human approval, and `REPAIR VERIFIED IN SANDBOX`. The live-found stacked-dialog edge case was corrected and rechecked: opening repair review through WebMCP closes an existing Evidence dialog and leaves one labelled active dialog.
+
 The base public workflow was exercised end to end on 2026-09-01. The WebMCP release was deployed and smoke-tested on 2026-09-02. This is a live-service verification record, not a replacement for the checked-in benchmark.
 
 ## Release identity
@@ -8,7 +18,7 @@ The base public workflow was exercised end to end on 2026-09-01. The WebMCP rele
 - GitHub source: `https://github.com/Georgexxe/cutoverproof`
 - Source release: `60021ad`
 - Cloud Build: `6ca78953-8d49-4d05-9a9b-f7a5bb9a1405` (`SUCCESS`)
-- Cloud Run revision: `cutoverproof-00008-4sk` (100% traffic)
+- Previous Cloud Run revision: `cutoverproof-00008-4sk`
 - Container digest: `sha256:39ef85f1031d4571654903585ddb230f58f258ce43eaa7500b64a7087b7b601e`
 - Rollback revision: `cutoverproof-00007-mrc`
 - Runtime service account: `cutoverproof-runner@project-ca8af2fe-5aff-496a-bd8.iam.gserviceaccount.com`

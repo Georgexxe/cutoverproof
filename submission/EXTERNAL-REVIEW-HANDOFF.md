@@ -6,7 +6,7 @@ CutoverProof tests PostgreSQL expand-and-contract migrations during the compatib
 
 Please review the product as a WebMCP competition entry, not only as a database tool. The key question is whether WebMCP creates a meaningful human-agent collaboration rather than exposing ordinary API wrappers.
 
-**Current handoff status:** source release `60021ad` is public and Cloud Run revision `cutoverproof-00008-4sk` is serving 100% traffic. Public rendering, WebMCP route discovery, authenticated contract listing, a no-execution review draft, live Vertex planning, PostgreSQL counterexample execution, named approval, and identical-schedule replay passed on 2026-09-02. The reviewer should now exercise the interactive browser flows below.
+**Current handoff status:** source release `8282b71` is public and Cloud Run revision `cutoverproof-00010-xf9` is serving 100% traffic. Public rendering, judge login, all five real WebMCP calls, a no-execution review draft, live Vertex planning, PostgreSQL counterexample execution, named approval, and identical-schedule replay passed on 2026-09-04. The reviewer should now exercise the interactive browser flows below.
 
 ## Locations
 
@@ -17,7 +17,7 @@ Please review the product as a WebMCP competition entry, not only as a database 
 - Proposed Devpost copy: `submission/WEBMCP-SUBMISSION.md`
 - Judge path: `submission/WEBMCP-JUDGE-GUIDE.md`
 - WebMCP extension record: `docs/WEBMCP-EXTENSIONS.md`
-- Current video draft: `submission/video/CutoverProof_WebMCP_Demo.mp4`
+- Superseded video draft (do not submit): `submission/video/CutoverProof_WebMCP_Demo.mp4`
 - Video script: `submission/WEBMCP-DEMO-SCRIPT.md`
 - Private access note: `submission/private/EXTERNAL-REVIEW-ACCESS.md` — keep this outside the public repository.
 - Firecrawl competition archive: `C:\Users\SURFACE\Documents\ChatGPT\HACKATHON EVALUATION\.firecrawl\webmcp-external-review-2026-09-02`
@@ -44,7 +44,7 @@ Please review the product as a WebMCP competition entry, not only as a database 
 
 1. Open the final deployment and sign in with the privately supplied reviewer credentials.
 2. Note whether the first signed-in screen makes the agent, database-verifier, and human roles clear without reading documentation.
-3. In the direct preparation workspace, enter: “Inspect the status-normalization contract and prepare a review focused on stale writes during the compatibility window.”
+3. On Home, select **Prepare a review** and use: “Inspect the status-normalization contract and prepare a review focused on stale writes during the compatibility window.”
 4. Verify that contract discovery, inspection, and review creation appear as live activity.
 5. Confirm the created card says that execution has **not** started.
 6. Select **Review & run**, inspect the contract, and explicitly start the assessment.

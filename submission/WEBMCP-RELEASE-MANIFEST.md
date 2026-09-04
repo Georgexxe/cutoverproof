@@ -1,5 +1,7 @@
 # CutoverProof WebMCP release manifest
 
+> **Superseded draft — do not submit this MP4.** It is a slideshow-style render and predates the final click-led workflow. Record the replacement from `WEBMCP-DEMO-SCRIPT.md`.
+
 Generated and verified on 2026-09-02.
 
 ## Submission video

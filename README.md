@@ -8,7 +8,7 @@ CutoverProof helps backend and data-platform engineers test the compatibility wi
 
 ## WebMCP change control
 
-The signed-in product now exposes five typed browser tools so a compatible agent can list and inspect migration contracts, create a visible human-review draft, read verified evidence, and open a pending repair review. Engineers can exercise the same bounded preparation workflow directly from the in-app **Agent workspace**, with live tool activity and a visible handoff. The agent cannot start an assessment, execute arbitrary SQL, approve a repair, or deploy. The shared authority model is visible in the product: **agent prepares, PostgreSQL verifies, human authorizes**.
+The signed-in product exposes five typed browser tools so a compatible agent can list and inspect migration contracts, create a visible human-review draft, read verified evidence, and open a pending repair review. Engineers can exercise the same bounded preparation path from Home through **Prepare a review**, with live activity and a visible handoff. The agent cannot start an assessment, execute arbitrary SQL, approve a repair, or deploy. The shared authority model is: **agent prepares, PostgreSQL verifies, human authorizes**.
 
 The implementation, safety properties, exact pre-existing-versus-new disclosure, and browser reproduction path are documented in [`docs/WEBMCP-EXTENSIONS.md`](docs/WEBMCP-EXTENSIONS.md).
 
@@ -95,8 +95,8 @@ python -m src.api.app
 Use the [live Cloud Run product](https://cutoverproof-1021060138341.us-central1.run.app), or open `http://127.0.0.1:8766` after starting the server locally. From the portal a backend engineer can:
 
 1. sign in to the migration-safety workspace;
-2. take a four-step coach-mark tour of the real interface without creating fake run history;
-3. choose **New assessment** to inspect the built-in example contract as formatted JSON or import a validated JSON migration pack;
+2. take a three-step coach-mark tour of the real interface without creating fake run history;
+3. choose **New assessment** to upload a validated JSON migration pack or load the sample pack;
 4. watch the bounded agent assessment run in the background;
 5. read the cutover decision and plain-language finding;
 6. inspect the executed ordering and violating database rows in-app;

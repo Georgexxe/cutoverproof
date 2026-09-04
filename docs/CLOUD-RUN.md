@@ -8,11 +8,11 @@ CutoverProof serves the React portal, FastAPI API, and an ephemeral PostgreSQL 1
 - Region: `us-central1`
 - Project: `project-ca8af2fe-5aff-496a-bd8`
 - Public URL: `https://cutoverproof-1021060138341.us-central1.run.app`
-- Source release: `60021ad`
-- Cloud Build: `6ca78953-8d49-4d05-9a9b-f7a5bb9a1405` (`SUCCESS`)
-- Image: `us-central1-docker.pkg.dev/project-ca8af2fe-5aff-496a-bd8/hackathon-apps/cutoverproof:6ca78953-8d49-4d05-9a9b-f7a5bb9a1405`
-- Image digest: `sha256:39ef85f1031d4571654903585ddb230f58f258ce43eaa7500b64a7087b7b601e`
-- Revision: `cutoverproof-00008-4sk` (100% traffic)
+- Source release: `8282b71`
+- Cloud Build: `a1dc2c04-3ca1-468f-8bf0-712d948b8577` (`SUCCESS`)
+- Image: `us-central1-docker.pkg.dev/project-ca8af2fe-5aff-496a-bd8/hackathon-apps/cutoverproof@sha256:c6ff9a6cdf1f4e080cd92a078fc11a9567c88c5054a25fb62fb6c4f50eada532`
+- Image digest: `sha256:c6ff9a6cdf1f4e080cd92a078fc11a9567c88c5054a25fb62fb6c4f50eada532`
+- Revision: `cutoverproof-00010-xf9` (100% traffic)
 - Runtime identity: `cutoverproof-runner@project-ca8af2fe-5aff-496a-bd8.iam.gserviceaccount.com`
 - Runtime: two vCPU, 2 GiB, concurrency 1, one warm instance, maximum one instance, 900-second request timeout
 - Model: `gemini-3.1-flash-lite` through Vertex AI
@@ -76,8 +76,8 @@ gcloud run deploy cutoverproof `
   --memory 2Gi `
   --cpu 2 `
   --concurrency 1 `
-  --max-instances 2 `
-  --min-instances 0 `
+  --max-instances 1 `
+  --min-instances 1 `
   --timeout 900 `
   --allow-unauthenticated
 ```
