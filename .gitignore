@@ -15,7 +15,12 @@ submission/video/contact-sheet.jpg
 submission/video/webmcp-build/
 submission/video/webmcp-voice/
 submission/video/webmcp-live-voice/
+submission/video/webmcp-cinematic-build/
 submission/video/*_RAW.mp4
+submission/video/*_CINEMATIC.mp4
+submission/video/*_CINEMATIC.srt
+submission/video/*_REJECTED_*.mp4
+submission/video/audit-*/
 submission/video/*-contact-sheet.png
 submission/video/final-frame-*.png
 submission/video/obs-*-check.png
