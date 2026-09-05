@@ -1,19 +1,19 @@
 # CutoverProof WebMCP release manifest
 
-Generated and verified on 2026-09-04.
+Generated and verified on 2026-09-05.
 
 ## Submission video
 
 - **Submit this file:** `submission/video/CutoverProof_WebMCP_Submission_FINAL.mp4`
 - Runtime: 157.000 seconds (2:37)
 - Container: MP4
-- Video: H.264, 1920×1080, 30 fps, yuv420p
+- Video: H.264, 1920×1080, 24 fps, yuv420p
 - Audio: AAC, 48 kHz, mono
-- Size: 5,156,111 bytes
-- SHA-256: `4C9F1F44ECFF504114345046B42FD3F895F5DA47C024B46A6663629DBD22896D`
+- Size: 5,849,413 bytes
+- SHA-256: `C8375CE6A78D67CB948114E97B716C794F8E567B67102E0CA7AAD5C5FBBF461F`
 - Decode verification: FFmpeg completed a full decode with zero reported errors
-- Capture treatment: one continuous live product recording with the real pointer and clicks; no slide replacements
-- Privacy treatment: Codex task chrome and browser chrome were cropped before recording; no credentials or private task names appear
+- Capture treatment: one continuous product-led story built from current app captures and the successful live run; no title or architecture slides
+- Privacy treatment: Codex task chrome, browser chrome, and the recording-control toast are absent; no credentials or private task names appear
 - Proof labels: timed overlays name all five WebMCP calls while those calls are exercised in the recorded workflow
 - Captions: burned into the video for judge-readable playback without a separate subtitle track
 - Narration voice: Google Cloud TTS `en-GB-Chirp3-HD-Charon`, matching the established CutoverProof competition-film voice
@@ -40,9 +40,9 @@ Get-FileHash -Algorithm SHA256 submission\video\CutoverProof_WebMCP_Submission_F
 ## Reproducible edit sources
 
 - Narration plan: `submission/video/webmcp-live-narration.json`
-- Timed labels and burned captions: `submission/video/webmcp-live.ass`
+- Timed labels and burned captions: `submission/video/webmcp-interactive.ass`
 - Voice generator: `scripts/render_webmcp_voice.ps1`
-- Final render pipeline: `scripts/render_webmcp_live_video.ps1`
+- Final render pipeline: `scripts/render_webmcp_interactive.py`
 - OBS local-control helper: `scripts/obs-control.mjs`
 
 The earlier `submission/video/CutoverProof_WebMCP_Demo.mp4` is a superseded slideshow-style draft and must not be submitted.
